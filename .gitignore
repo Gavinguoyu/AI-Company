@@ -59,6 +59,9 @@ nul
 # .claude/
 # .agents/
 
+# Cursor MCP配置 (包含敏感Token)
+cursor-config/mcp.json
+
 # 操作系统
 .DS_Store
 Thumbs.db
