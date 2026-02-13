@@ -1,0 +1,41 @@
+# 美术素材清单（AI自动生成）
+# 项目目录: D:\Cursor\AI-Company\projects\测试2
+# 生成工具: Gemini 2.5 Flash Image
+
+素材列表:
+- name: Bird
+  path: D:\Cursor\AI-Company\projects\测试2\output\assets\Bird.png
+  prompt: 'A pixel art game asset: 游戏主角小鸟，需要多帧动画表现飞行扑腾状态。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: Bird.'
+  status: generated
+- name: Pipe
+  path: D:\Cursor\AI-Company\projects\测试2\output\assets\Pipe.png
+  prompt: 'A pixel art game asset: 游戏障碍物管道，包含上半部分和下半部分。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: Pipe.'
+  status: generated
+- name: Background Sky
+  path: D:\Cursor\AI-Company\projects\测试2\output\assets\Background Sky.png
+  prompt: 'A pixel art game asset: 游戏主背景天空，需要能循环滚动。. Clean and simple design, suitable
+    for a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: Background Sky.'
+  status: generated
+- name: Ground
+  path: D:\Cursor\AI-Company\projects\测试2\output\assets\Ground.png
+  prompt: 'A pixel art game asset: 游戏地面，需要能循环滚动并与背景有视差。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: Ground.'
+  status: generated
+- name: Title Logo
+  path: D:\Cursor\AI-Company\projects\测试2\output\assets\Title Logo.png
+  prompt: 'A pixel art game asset: 游戏开始界面的标题Logo。. Clean and simple design, suitable
+    for a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: Title Logo.'
+  status: generated
+- name: Restart Button
+  path: D:\Cursor\AI-Company\projects\测试2\output\assets\Restart Button.png
+  prompt: 'A pixel art game asset: 游戏结束界面的重新开始按钮，需要默认和按下两种状态。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: Restart Button.'
+  status: generated

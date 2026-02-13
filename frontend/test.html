@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>功能测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI游戏公司 - 功能测试</h1>
+    
+    <div class="test-section">
+        <h2>测试1: 创建项目API</h2>
+        <button onclick="testCreateProject()">测试创建项目</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>测试2: WebSocket连接</h2>
+        <button onclick="testWebSocket()">测试WebSocket</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>测试3: 项目列表</h2>
+        <button onclick="testProjectList()">获取项目列表</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        async function testCreateProject() {
+            const resultDiv = document.getElementById('result1');
+            resultDiv.textContent = '测试中...';
+            
+            try {
+                const response = await fetch('/api/project/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        project_name: 'test_game',
+                        game_idea: '制作一个测试游戏'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    resultDiv.style.background = '#d4edda';
+                } else {
+                    resultDiv.style.background = '#f8d7da';
+                }
+            } catch (error) {
+                resultDiv.textContent = '错误: ' + error.message;
+                resultDiv.style.background = '#f8d7da';
+            }
+        }
+
+        function testWebSocket() {
+            const resultDiv = document.getElementById('result2');
+            resultDiv.textContent = '连接中...';
+            
+            try {
+                const clientId = 'test-' + Date.now();
+                const ws = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
+                
+                ws.onopen = () => {
+                    resultDiv.textContent = '✅ WebSocket连接成功！';
+                    resultDiv.style.background = '#d4edda';
+                    setTimeout(() => ws.close(), 2000);
+                };
+                
+                ws.onerror = (error) => {
+                    resultDiv.textContent = '❌ WebSocket连接失败: ' + error;
+                    resultDiv.style.background = '#f8d7da';
+                };
+                
+                ws.onmessage = (event) => {
+                    resultDiv.textContent += '\n收到消息: ' + event.data;
+                };
+            } catch (error) {
+                resultDiv.textContent = '错误: ' + error.message;
+                resultDiv.style.background = '#f8d7da';
+            }
+        }
+
+        async function testProjectList() {
+            const resultDiv = document.getElementById('result3');
+            resultDiv.textContent = '加载中...';
+            
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.style.background = '#d4edda';
+            } catch (error) {
+                resultDiv.textContent = '错误: ' + error.message;
+                resultDiv.style.background = '#f8d7da';
+            }
+        }
+    </script>
+</body>
+</html>

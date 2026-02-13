@@ -1,0 +1,53 @@
+# 老板决策日志
+# 项目名称: 1111
+
+决策记录: []
+
+  - id: 6d2066a8-4d11-41aa-a516-de06fdedb898
+    title: 项目立项确认
+    question: PM已分析需求并拆解任务,是否确认项目方向?
+
+项目名称: 1111
+需求描述: 制作一个经典的贪吃蛇游戏。玩家控制一条蛇在地图上移动，通过吃食物增长身体，同时避免撞到自己或墙壁。
+    options: ['确认,开始策划', '修改需求', '取消项目']
+    decision: 确认,开始策划
+    timeout: False
+    timestamp: 2026-02-12T17:09:14.090139
+    context: {'phase': 'initiation', 'project_name': '1111'}
+
+  - id: 48e654e3-dd14-44a6-ac3c-1f84c4be7719
+    title: 策划文档审批
+    question: 策划已完成游戏策划文档(GDD),是否批准进入技术设计阶段?
+
+游戏名称: 1111
+GDD已保存至: shared_knowledge/game_design_doc.md
+    options: ['批准,进入技术设计', '需要修改策划']
+    decision: 批准,进入技术设计
+    timeout: False
+    timestamp: 2026-02-12T17:10:53.838401
+    context: {'phase': 'planning', 'gdd_path': 'D:\\Cursor\\AI-Company\\projects\\1111\\shared_knowledge\\game_design_doc.md'}
+
+  - id: 5b7980c9-4f7e-49b7-93f4-16da0f6d3943
+    title: 开发阶段验收
+    question: 程序员已完成代码开发,是否进入测试阶段?
+
+HTML文件: ✅已生成
+JS文件: ✅已生成
+输出目录: D:\Cursor\AI-Company\projects\1111\output
+    options: ['进入测试', '先让我看看代码']
+    decision: 进入测试
+    timeout: False
+    timestamp: 2026-02-12T17:11:55.170837
+    context: {'phase': 'development', 'output_dir': 'D:\\Cursor\\AI-Company\\projects\\1111\\output'}
+
+  - id: bec1ec95-8f61-4247-9fd9-8f88c152545a
+    title: 项目交付确认
+    question: 测试和Bug修复阶段已完成,是否确认交付项目?
+
+Bug状态: ✅ 所有Bug已修复
+输出目录: D:\Cursor\AI-Company\projects\1111\output
+    options: ['确认交付', '继续修复Bug', '放弃项目']
+    decision: 确认交付
+    timeout: False
+    timestamp: 2026-02-12T17:11:59.057255
+    context: {'phase': 'bug_fixing', 'bug_status': '✅ 所有Bug已修复'}

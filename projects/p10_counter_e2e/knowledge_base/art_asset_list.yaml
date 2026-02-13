@@ -1,0 +1,36 @@
+# 美术素材清单（AI自动生成）
+# 项目目录: D:\Cursor\AI-Company\projects\p10_counter_e2e
+# 生成工具: Gemini 2.5 Flash Image
+
+素材列表:
+- name: ui_background
+  path: null
+  prompt: 'A pixel art game asset: 游戏界面的像素风格背景图，深灰色调，带有极简的像素纹理，清晰明亮。. Clean and simple
+    design, suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: ui_background.'
+  status: failed
+  error: API返回空响应
+- name: button_plus_normal
+  path: D:\Cursor\AI-Company\projects\p10_counter_e2e\output\assets\button_plus_normal.png
+  prompt: 'A pixel art game asset: 像素风格的“+1”按钮，正常状态，绿色背景，圆角矩形。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: button_plus_normal.'
+  status: generated
+- name: button_minus_normal
+  path: D:\Cursor\AI-Company\projects\p10_counter_e2e\output\assets\button_minus_normal.png
+  prompt: 'A pixel art game asset: 像素风格的“-1”按钮，正常状态，红色背景，圆角矩形。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: button_minus_normal.'
+  status: generated
+- name: button_plus_active
+  path: D:\Cursor\AI-Company\projects\p10_counter_e2e\output\assets\button_plus_active.png
+  prompt: 'A pixel art game asset: 像素风格的“+1”按钮，点击/激活状态，比正常状态颜色更深的绿色背景，圆角矩形。. Clean
+    and simple design, suitable for a 2D game, transparent or solid color background,
+    high contrast, clear edges. Asset name: button_plus_active.'
+  status: generated
+- name: button_minus_active
+  path: D:\Cursor\AI-Company\projects\p10_counter_e2e\output\assets\button_minus_active.png
+  prompt: 'A pixel art game asset: 像素风格的“-1”按钮，点击/激活状态，比正常状态颜色更深的红色背景，圆角矩形。. Clean
+    and simple design, suitable for a 2D game, transparent or solid color background,
+    high contrast, clear edges. Asset name: button_minus_active.'
+  status: generated

@@ -1,0 +1,53 @@
+# 老板决策日志
+# 项目名称: 111
+
+决策记录: []
+
+  - id: 90e078ba-62c6-442b-836b-06dc0ccc5597
+    title: 项目立项确认
+    question: PM已分析需求并拆解任务,是否确认项目方向?
+
+项目名称: 111
+需求描述: 制作一个Flappy Bird风格的游戏。玩家点击屏幕让小鸟飞起来，需要在管道之间穿梭。
+    options: ['确认,开始策划', '修改需求', '取消项目']
+    decision: 确认,开始策划
+    timeout: False
+    timestamp: 2026-02-12T16:14:19.830955
+    context: {'phase': 'initiation', 'project_name': '111'}
+
+  - id: 978c0d36-ec2d-402b-b586-28dc42a6f017
+    title: 策划文档审批
+    question: 策划已完成游戏策划文档(GDD),是否批准进入技术设计阶段?
+
+游戏名称: 111
+GDD已保存至: shared_knowledge/game_design_doc.md
+    options: ['批准,进入技术设计', '需要修改策划']
+    decision: 批准,进入技术设计
+    timeout: False
+    timestamp: 2026-02-12T16:14:52.387483
+    context: {'phase': 'planning', 'gdd_path': 'D:\\Cursor\\AI-Company\\projects\\111\\shared_knowledge\\game_design_doc.md'}
+
+  - id: fa7a99c5-9461-48bb-94fd-5b8799cad3bd
+    title: 开发阶段验收
+    question: 程序员已完成代码开发,是否进入测试阶段?
+
+HTML文件: ✅已生成
+JS文件: ✅已生成
+输出目录: D:\Cursor\AI-Company\projects\111\output
+    options: ['进入测试', '先让我看看代码']
+    decision: 进入测试
+    timeout: False
+    timestamp: 2026-02-12T16:17:35.002917
+    context: {'phase': 'development', 'output_dir': 'D:\\Cursor\\AI-Company\\projects\\111\\output'}
+
+  - id: 1f129e0e-b068-4154-96c2-ee70df48b33d
+    title: 项目交付确认
+    question: 测试和Bug修复阶段已完成,是否确认交付项目?
+
+Bug状态: ✅ 所有Bug已修复
+输出目录: D:\Cursor\AI-Company\projects\111\output
+    options: ['确认交付', '继续修复Bug', '放弃项目']
+    decision: 确认交付
+    timeout: False
+    timestamp: 2026-02-12T16:17:42.219890
+    context: {'phase': 'bug_fixing', 'bug_status': '✅ 所有Bug已修复'}

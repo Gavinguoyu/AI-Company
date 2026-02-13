@@ -1,0 +1,31 @@
+P10 Test Log - 2026-02-12 18:46:34
+============================================================
+
+--- Step: health ---
+Health check: 200 {"status":"healthy","service":"AI Game Studio","version":"1.0.0","timestamp":"2026-02-12T18:46:34.497493"}
+Step health result: True
+
+--- Step: create ---
+Create project: 200
+Response: {
+  "success": true,
+  "project_id": "p10_counter_20260212_184645",
+  "message": "项目 'p10_counter' 已创建，AI 团队正在启动...",
+  "created_at": "2026-02-12T18:46:45.704574"
+}
+Project ID saved: p10_counter_20260212_184645
+Step create result: p10_counter_20260212_184645
+
+--- Step: create ---
+Create project: 200
+Response: {
+  "success": true,
+  "project_id": "p10_counter_20260212_185149",
+  "message": "项目 'p10_counter' 已创建，AI 团队正在启动...",
+  "created_at": "2026-02-12T18:51:49.739575"
+}
+Project ID saved: p10_counter_20260212_185149
+Step create result: p10_counter_20260212_185149
+
+--- Step: monitor ---
+  [10s] Phase: 立项 | Progress: 0.0 | Status: running

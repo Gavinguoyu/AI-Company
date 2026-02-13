@@ -1,0 +1,23 @@
+# 美术素材清单（AI自动生成）
+# 项目目录: D:\Cursor\AI-Company\projects\p10_counter
+# 生成工具: Gemini 2.5 Flash Image
+
+素材列表:
+- name: button_default
+  path: D:\Cursor\AI-Company\projects\p10_counter\output\assets\button_default.png
+  prompt: 'A pixel art game asset: 主点击按钮的默认状态. Clean and simple design, suitable for
+    a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: button_default.'
+  status: generated
+- name: button_pressed
+  path: D:\Cursor\AI-Company\projects\p10_counter\output\assets\button_pressed.png
+  prompt: 'A pixel art game asset: 主点击按钮的按下状态. Clean and simple design, suitable for
+    a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: button_pressed.'
+  status: generated
+- name: pixel_font
+  path: D:\Cursor\AI-Company\projects\p10_counter\output\assets\pixel_font.png
+  prompt: 'A pixel art game asset: 游戏UI和数字显示使用的像素风格字体. Clean and simple design, suitable
+    for a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: pixel_font.'
+  status: generated

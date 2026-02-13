@@ -1,0 +1,92 @@
+# 后端开发规则
+
+## 文件职责划分
+
+### engine/ 目录
+- `agent.py` - Agent 基类，定义 Agent 的基本行为和接口
+- `message_bus.py` - 消息总线，负责消息路由、记录和推送
+- `task_manager.py` - 任务管理器，管理 Agent 的任务队列
+- `context_manager.py` - 上下文管理器，控制 LLM 上下文窗口大小
+- `llm_client.py` - LLM API 调用封装，支持多种模型切换
+
+### agents/ 目录
+- 每个 Agent 一个文件，继承自 `engine.agent.Agent`
+- 文件命名: `{角色}_agent.py`
+- 每个 Agent 文件包含:
+  - Agent 类定义
+  - System Prompt
+  - 工具列表
+  - 特殊行为逻辑
+
+### tools/ 目录
+- 每个工具一个文件
+- 工具类必须实现统一的接口
+- 包含输入验证和错误处理
+
+### workflows/ 目录
+- 定义完整的业务流程
+- 协调多个 Agent 的协作
+
+### api/ 目录
+- `http_routes.py` - RESTful API 路由
+- `websocket_handler.py` - WebSocket 连接处理
+
+## 开发规范
+
+### Agent 基类使用
+```python
+from engine.agent import Agent
+
+class MyAgent(Agent):
+    def __init__(self):
+        super().__init__(
+            agent_id="my_agent",
+            role="角色名称",
+            system_prompt="提示词",
+            tools=["tool1", "tool2"]
+        )
+    
+    async def process_message(self, message):
+        """处理收到的消息"""
+        pass
+```
+
+### 消息总线使用
+```python
+from engine.message_bus import MessageBus
+
+# 发送消息
+await message_bus.send({
+    "from": "agent_a",
+    "to": "agent_b",
+    "type": "question",
+    "content": "问题内容"
+})
+
+# 订阅消息
+message_bus.subscribe("agent_b", callback_function)
+```
+
+### LLM 调用规范
+```python
+from engine.llm_client import LLMClient
+
+llm = LLMClient()
+response = await llm.generate(
+    messages=[...],
+    model="gemini-2.0-flash",
+    max_tokens=2000
+)
+```
+
+## 错误处理
+
+- 所有 API 调用必须用 try-except 包裹
+- 记录详细的错误日志
+- 向上层返回友好的错误信息
+
+## 测试要求
+
+- 每个核心模块编写单元测试
+- 使用 pytest 框架
+- 测试文件命名: `test_{模块名}.py`

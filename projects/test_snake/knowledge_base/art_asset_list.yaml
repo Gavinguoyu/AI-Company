@@ -1,0 +1,30 @@
+# 美术素材清单（AI自动生成）
+# 项目目录: D:\Cursor\AI-Company\projects\test_snake
+# 生成工具: Gemini 2.5 Flash Image
+
+素材列表:
+- name: snake_head
+  path: D:\Cursor\AI-Company\projects\test_snake\output\assets\snake_head.png
+  prompt: 'A pixel art game asset: 蛇头，需要有清晰的头部特征，如眼睛，以区分方向。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: snake_head.'
+  status: generated
+- name: snake_body_segment
+  path: D:\Cursor\AI-Company\projects\test_snake\output\assets\snake_body_segment.png
+  prompt: 'A pixel art game asset: 蛇身的一个节，方形，与蛇头颜色可区分。. Clean and simple design, suitable
+    for a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: snake_body_segment.'
+  status: generated
+- name: food_item
+  path: D:\Cursor\AI-Company\projects\test_snake\output\assets\food_item.png
+  prompt: 'A pixel art game asset: 食物，例如一个像素风格的苹果或能量块。. Clean and simple design, suitable
+    for a 2D game, transparent or solid color background, high contrast, clear edges.
+    Asset name: food_item.'
+  status: generated
+- name: game_background_tile
+  path: null
+  prompt: 'A pixel art game asset: 游戏区域的背景瓦片，可以是纯色或带有简单的网格线。. Clean and simple design,
+    suitable for a 2D game, transparent or solid color background, high contrast,
+    clear edges. Asset name: game_background_tile.'
+  status: failed
+  error: API返回空响应

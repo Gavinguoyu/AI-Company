@@ -1,0 +1,130 @@
+# Agent 引擎开发规则
+
+## 核心设计原则
+
+### 1. 自由对话模式
+- Agent 不是流水线式工作，而是可以随时发起对话
+- 任何 Agent 可以在任何时候找任何其他 Agent 交流
+- 消息总线负责所有通信的路由和记录
+
+### 2. 文件即真相
+- Agent 的 LLM 上下文不可信（会遗忘）
+- 所有重要信息必须写入共享知识库文件
+- Agent 工作前必须先读取相关文件
+
+### 3. 工具驱动
+- Agent 的能力由工具决定
+- 工具必须注册才能使用
+- 工具调用必须有日志记录
+
+## Agent 基类设计
+
+### 必须实现的方法
+```python
+class Agent:
+    async def think(self, context) -> Action:
+        """根据上下文思考下一步行动"""
+        pass
+    
+    async def process_message(self, message) -> Response:
+        """处理收到的消息"""
+        pass
+    
+    async def work_on_task(self, task) -> Result:
+        """执行分配的任务"""
+        pass
+```
+
+### Agent 工作循环
+```python
+async def agent_work_loop(agent):
+    while True:
+        # 1. 检查消息
+        if has_new_message():
+            await handle_message()
+            continue
+        
+        # 2. 检查任务
+        if has_pending_task():
+            await execute_task()
+            continue
+        
+        # 3. 空闲等待
+        await asyncio.sleep(2)
+```
+
+## 消息总线设计
+
+### 职责
+- 路由消息（点对点、广播、上报老板）
+- 记录所有消息到日志
+- 推送消息到前端 WebSocket
+- 管理消息队列（防止淹没）
+
+### 消息优先级处理
+- `normal`: 放入队列，按顺序处理
+- `urgent`: 打断当前工作，立即处理
+- `blocking`: 发送者暂停，等待回复
+
+## 上下文管理策略
+
+### Token 预算
+- 单次 LLM 调用最多使用 100K tokens
+- 超过限制时自动裁剪旧内容
+- 优先保留最近的对话和必读文件
+
+### 必读文件注入
+- 每个 Agent 角色有自己的必读文件清单
+- 工作前自动读取并注入上下文
+- 使用 Gemini Context Caching 缓存固定内容
+
+## 共享知识库设计
+
+### 文件列表
+- `project_rules.yaml` - 项目总规范
+- `game_design_doc.md` - 游戏策划文档
+- `tech_design_doc.md` - 技术设计文档
+- `api_registry.yaml` - 接口注册表
+- `config_tables.yaml` - 策划配置表
+- `art_asset_list.yaml` - 美术素材清单
+- `bug_tracker.yaml` - Bug 列表
+- `decision_log.yaml` - 老板决策记录
+
+### 读写规则
+- 程序员写代码前必须读 `api_registry.yaml`
+- 程序员写代码后必须更新 `api_registry.yaml`
+- 策划输出必须写入 `game_design_doc.md` 和 `config_tables.yaml`
+- 测试必须将 Bug 写入 `bug_tracker.yaml`
+
+## 防止常见问题
+
+### 防止重复代码
+- api_registry.yaml 记录所有已有函数
+- 程序员 Agent 的 Prompt 中硬编码"必须先查注册表"
+- 代码提交后自动审查是否有重复
+
+### 防止记忆混乱
+- 不依赖 Agent 的记忆
+- 所有关键信息写入文件
+- Agent 工作前强制读取文件
+
+### 防止死循环
+- Bug 修复最多 3 轮
+- 消息频率限制（1 分钟最多 10 条）
+- 总 Token 预算超限时警告
+
+## 工具系统设计
+
+### 工具注册
+```python
+@tool_registry.register("file_read")
+async def file_read(path: str) -> str:
+    """读取文件内容"""
+    pass
+```
+
+### 工具调用
+- Agent 声明自己拥有哪些工具
+- LLM 生成工具调用指令
+- 引擎执行工具并返回结果
+- 记录所有工具调用到日志

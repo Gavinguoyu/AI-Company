@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 环境变量和敏感信息
+.env
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 项目产出
+projects/*/output/
+projects/*/logs/
+
+# 临时文件
+*.log
+*.tmp
+temp/
+tmp/
+
+# 清理脚本生成的备份
+backup_before_cleanup/
+backup_before_cleanup_*/
+
+# 测试输出和日志
+test_output/
+logs/
+*.log
+nul
+
+# Cursor/Claude 配置 (可选保留)
+# .cursor/
+# .claude/
+# .agents/
+
+# 操作系统
+.DS_Store
+Thumbs.db

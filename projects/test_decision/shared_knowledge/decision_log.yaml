@@ -1,0 +1,13 @@
+# 老板决策日志
+# 项目名称: test_decision
+
+决策记录: []
+
+  - id: d192f8dc-2a34-47fb-a663-82259614a4be
+    title: 测试决策
+    question: 这是一个测试决策，请选择一个选项
+    options: ['选项A', '选项B', '选项C']
+    decision: 选项B
+    timeout: False
+    timestamp: 2026-02-12T12:44:39.688435
+    context: {'test': 'data'}

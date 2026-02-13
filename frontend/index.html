@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI GameDev Studio</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- ═══ 顶部状态栏 ═══ -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <span class="logo">▶ AI<span class="accent">GameDev</span></span>
+                <span class="divider">│</span>
+                <span id="project-name-display" class="project-label">NO PROJECT</span>
+                <span id="project-phase-display" class="phase-badge">IDLE</span>
+            </div>
+            <div class="topbar-right">
+                <div class="progress-mini">
+                    <div id="progress-bar-mini" class="progress-mini-fill" style="width:0%"></div>
+                </div>
+                <span id="progress-pct" class="progress-pct">0%</span>
+                <span class="divider">│</span>
+                <!-- 决策指示灯 -->
+                <span id="decision-indicator" class="decision-indicator" style="display:none" title="需要老板决策">
+                    🔴 DECISION REQUIRED
+                </span>
+                <span class="divider" id="decision-divider" style="display:none">│</span>
+                <span id="ws-status" class="ws-badge offline">● OFFLINE</span>
+                <button id="play-game-btn" class="btn-play" style="display:none" title="试玩游戏">🎮 PLAY</button>
+                <button id="knowledge-base-btn" class="btn-kb" title="知识库">📚 KB</button>
+                <button id="create-project-btn" class="btn-create">+ NEW</button>
+            </div>
+        </header>
+
+        <!-- ═══ 主区域：办公室Canvas(全宽) ═══ -->
+        <main class="workspace">
+            <div id="office-canvas" class="office-canvas">
+                <div class="loading-placeholder">Initializing office scene…</div>
+            </div>
+        </main>
+
+        <!-- ═══ 底部日志栏 ═══ -->
+        <footer class="logbar">
+            <div class="logbar-header">
+                <span class="logbar-title">› SYSTEM LOG</span>
+                <span id="log-count" class="log-count">0</span>
+            </div>
+            <div id="log-messages" class="log-messages">
+                <div class="log-welcome">[system] Waiting for events…</div>
+            </div>
+        </footer>
+
+        <!-- ═══ 右侧Agent详情抽屉 ═══ -->
+        <aside id="agent-drawer" class="agent-drawer">
+            <div class="drawer-header">
+                <div class="drawer-agent-info">
+                    <span id="drawer-emoji" class="drawer-emoji"></span>
+                    <div>
+                        <div id="drawer-name" class="drawer-name"></div>
+                        <div id="drawer-status" class="drawer-status"></div>
+                    </div>
+                </div>
+                <button id="drawer-close" class="drawer-close">✕</button>
+            </div>
+            <nav class="drawer-tabs">
+                <button class="drawer-tab active" data-tab="messages">消息</button>
+                <button class="drawer-tab" data-tab="output">产出</button>
+                <button class="drawer-tab" data-tab="files">文件</button>
+            </nav>
+            <div id="drawer-content" class="drawer-content">
+                <!-- 动态内容 -->
+            </div>
+        </aside>
+
+        <!-- ═══ 老板对话框（固定右下角） ═══ -->
+        <div id="boss-chat" class="boss-chat collapsed">
+            <div id="boss-chat-toggle" class="boss-chat-header">
+                <span>👔 老板通道</span>
+                <span id="boss-unread" class="boss-unread" style="display:none">0</span>
+                <span class="boss-toggle-icon">▲</span>
+            </div>
+            <div class="boss-chat-body">
+                <div id="boss-messages" class="boss-messages">
+                    <div class="boss-welcome">等待决策请求…</div>
+                </div>
+                <div id="boss-actions" class="boss-actions" style="display:none">
+                    <!-- 决策按钮动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 创建项目对话框 ═══ -->
+    <div id="create-project-modal" class="modal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-box">
+            <div class="modal-box-header">
+                <h2>NEW GAME PROJECT</h2>
+                <button class="modal-close" id="close-modal">✕</button>
+            </div>
+            <form id="create-project-form" class="modal-box-body">
+                <div class="field">
+                    <label for="input-project-name">项目名称</label>
+                    <input type="text" id="input-project-name" name="name" placeholder="snake_game" required>
+                </div>
+                <div class="field">
+                    <label>快速模板</label>
+                    <div class="template-grid">
+                        <button type="button" class="tpl-btn" data-template="snake">🐍 贪吃蛇</button>
+                        <button type="button" class="tpl-btn" data-template="flappy">🐦 Flappy</button>
+                        <button type="button" class="tpl-btn" data-template="2048">🔢 2048</button>
+                        <button type="button" class="tpl-btn" data-template="tetris">🧱 俄罗斯方块</button>
+                        <button type="button" class="tpl-btn active" data-template="custom">✏️ 自定义</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="input-project-desc">游戏描述</label>
+                    <textarea id="input-project-desc" name="description" rows="3" placeholder="描述你想要的游戏…" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="cancel-btn">取消</button>
+                    <button type="submit" class="btn-go">▶ START</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══ 知识库浏览模态框 ═══ -->
+    <div id="knowledge-base-modal" class="modal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-box kb-modal-box">
+            <div class="modal-box-header">
+                <h2>📚 项目知识库</h2>
+                <button class="modal-close" id="close-kb-modal">✕</button>
+            </div>
+            <div class="kb-modal-body">
+                <div class="kb-sidebar">
+                    <div class="kb-folder" data-folder="shared_knowledge">
+                        <div class="kb-folder-header">📁 共享知识库</div>
+                        <div class="kb-folder-content" id="kb-shared-list"></div>
+                    </div>
+                    <div class="kb-folder" data-folder="output">
+                        <div class="kb-folder-header">📦 游戏产出</div>
+                        <div class="kb-folder-content" id="kb-output-list"></div>
+                    </div>
+                </div>
+                <div class="kb-content">
+                    <div class="kb-empty">请选择文件查看</div>
+                    <div class="kb-file-view" style="display:none;">
+                        <div class="kb-file-header">
+                            <h3 id="kb-file-title"></h3>
+                            <span id="kb-file-meta"></span>
+                        </div>
+                        <div class="kb-file-content">
+                            <pre><code id="kb-file-code"></code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 老板决策模态弹窗 ═══ -->
+    <div id="decision-modal" class="modal decision-modal" style="display:none;">
+        <div class="modal-overlay decision-overlay"></div>
+        <div class="modal-box decision-box">
+            <div class="decision-header">
+                <div class="decision-icon">👔</div>
+                <div class="decision-title-area">
+                    <h2 id="decision-title" class="decision-title">老板决策</h2>
+                    <p id="decision-question" class="decision-question"></p>
+                </div>
+            </div>
+            <div class="decision-body">
+                <div id="decision-options" class="decision-options">
+                    <!-- 决策选项按钮动态生成 -->
+                </div>
+            </div>
+            <div class="decision-footer">
+                <span class="decision-hint">⚠️ 请做出决策以继续工作流</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>
