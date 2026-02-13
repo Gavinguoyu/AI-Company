@@ -55,42 +55,64 @@ export class KnowledgeBase {
     async fetchProjectName(projectId) {
         try {
             const res = await fetch(`/api/project/${projectId}/status`);
-            const data = await res.json();
-            if (data.project && data.project.project_name) {
-                this.projectName = data.project.project_name;
-            } else {
-                // 从project_id中提取（去掉时间戳后缀）
-                this.projectName = projectId.split('_').slice(0, -2).join('_') || projectId;
+            if (res.ok) {
+                const data = await res.json();
+                // API直接返回扁平字段: { project_name, project_id, ... }
+                if (data.project_name) {
+                    this.projectName = data.project_name;
+                    return;
+                }
             }
+            // fallback: 从project_id中提取（去掉时间戳后缀 _YYYYMMDD_HHMMSS）
+            this.projectName = this._extractProjectName(projectId);
         } catch (e) {
-            // 如果API失败，尝试从project_id中提取
-            this.projectName = projectId.split('_').slice(0, -2).join('_') || projectId;
+            this.projectName = this._extractProjectName(projectId);
         }
     }
     
-    async loadFileList() {
-        try {
-            // 使用project_name作为目录名
-            const projectName = this.projectName || this.currentProjectId;
-            
-            // 加载共享知识库文件
-            const sharedRes = await fetch(`/api/project/${this.currentProjectId}/files?directory=shared_knowledge`);
-            const sharedData = await sharedRes.json();
-            
-            if (sharedData.success) {
-                this.renderFileList(this.sharedList, sharedData.items, 'shared_knowledge');
+    _extractProjectName(projectId) {
+        // "p10_counter_test_20260213_183223" -> "p10_counter_test"
+        // "11_20260213_200851" -> "11"
+        const parts = projectId.split('_');
+        if (parts.length >= 3) {
+            const last = parts[parts.length - 1];
+            const secondLast = parts[parts.length - 2];
+            if (/^\d{6}$/.test(last) && /^\d{8}$/.test(secondLast)) {
+                return parts.slice(0, -2).join('_') || projectId;
             }
-            
-            // 加载游戏产出文件
-            const outputRes = await fetch(`/api/project/${this.currentProjectId}/files?directory=output`);
-            const outputData = await outputRes.json();
-            
-            if (outputData.success) {
-                this.renderFileList(this.outputList, outputData.items, 'output');
+        }
+        return projectId;
+    }
+    
+    async loadFileList() {
+        const pid = this.currentProjectId;
+        
+        // 加载共享知识库文件
+        try {
+            const sharedRes = await fetch(`/api/project/${pid}/files?directory=shared_knowledge`);
+            const sharedData = await sharedRes.json();
+            if (sharedData.success && sharedData.items) {
+                this.renderFileList(this.sharedList, sharedData.items, 'shared_knowledge');
+            } else {
+                this.renderFileList(this.sharedList, [], 'shared_knowledge');
             }
         } catch (err) {
-            console.error('加载文件列表失败:', err);
-            alert('加载文件列表失败: ' + err.message);
+            console.warn('加载知识库文件失败:', err);
+            this.renderFileList(this.sharedList, [], 'shared_knowledge');
+        }
+        
+        // 加载游戏产出文件
+        try {
+            const outputRes = await fetch(`/api/project/${pid}/files?directory=output`);
+            const outputData = await outputRes.json();
+            if (outputData.success && outputData.items) {
+                this.renderFileList(this.outputList, outputData.items, 'output');
+            } else {
+                this.renderFileList(this.outputList, [], 'output');
+            }
+        } catch (err) {
+            console.warn('加载产出文件失败:', err);
+            this.renderFileList(this.outputList, [], 'output');
         }
     }
     

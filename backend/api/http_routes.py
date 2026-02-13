@@ -194,6 +194,71 @@ def _resolve_project_dir(project_id: str) -> Optional[Path]:
     return None
 
 
+def _scan_disk_projects():
+    """
+    扫描磁盘上的项目目录，将不在内存store中的项目补充进去。
+    这样即使服务重启，也能恢复已有项目的列表。
+    """
+    projects_root = Config.PROJECTS_DIR
+    if not projects_root.exists():
+        return
+    
+    # 收集内存中已知的project_name集合
+    known_names = set()
+    for p in projects_store.values():
+        known_names.add(p.get("project_name", ""))
+    
+    for d in projects_root.iterdir():
+        if not d.is_dir():
+            continue
+        project_name = d.name
+        
+        # 如果已经在store中，跳过
+        if project_name in known_names:
+            continue
+        
+        # 检查是否已有以这个name开头的project_id在store中
+        already_exists = False
+        for pid in projects_store:
+            if pid.startswith(project_name):
+                already_exists = True
+                break
+        if already_exists:
+            continue
+        
+        # 从磁盘恢复一个基本项目记录
+        # 检查是否有output目录来判断状态
+        has_output = (d / "output").exists() and any((d / "output").iterdir()) if (d / "output").exists() else False
+        
+        # 尝试从目录修改时间获取创建时间
+        try:
+            created_time = datetime.fromtimestamp(d.stat().st_ctime).isoformat()
+        except Exception:
+            created_time = datetime.now().isoformat()
+        
+        project_id = project_name  # 磁盘恢复的项目直接用目录名作为ID
+        project = {
+            "project_id": project_id,
+            "project_name": project_name,
+            "game_idea": "",
+            "status": "completed" if has_output else "unknown",
+            "current_phase": "已完成" if has_output else "未知",
+            "progress": 100.0 if has_output else 0.0,
+            "tasks_completed": 0,
+            "tasks_total": 14,
+            "agents_status": {
+                "pm": "idle", "planner": "idle",
+                "programmer": "idle", "artist": "idle", "tester": "idle"
+            },
+            "created_at": created_time,
+            "updated_at": created_time
+        }
+        projects_store[project_id] = project
+        known_names.add(project_name)
+    
+    logger.debug(f"磁盘扫描完成，当前项目总数: {len(projects_store)}")
+
+
 # =====================================================
 # API 路由定义
 # =====================================================
@@ -590,7 +655,9 @@ async def submit_feedback(project_id: str, request: Request):
         提交结果
     """
     try:
-        if project_id not in projects_store:
+        # 解析项目目录 - 不依赖内存store
+        project_dir = _resolve_project_dir(project_id)
+        if not project_dir:
             raise HTTPException(status_code=404, detail=f"项目不存在: {project_id}")
         
         # 解析请求体
@@ -602,8 +669,6 @@ async def submit_feedback(project_id: str, request: Request):
             raise HTTPException(status_code=400, detail="反馈内容不能为空")
         
         # 读取或创建bug_tracker.yaml
-        from pathlib import Path
-        project_dir = Config.PROJECTS_DIR / project_id
         bug_tracker_path = project_dir / "shared_knowledge" / "bug_tracker.yaml"
         
         if bug_tracker_path.exists():

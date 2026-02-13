@@ -597,19 +597,42 @@ class App {
 
         try {
             const res = await fetch(`/api/project/${projectId}/status`);
-            const data = await res.json();
-            if (data.project) {
-                // 保存project_name用于知识库和游戏访问
-                this.currentProjectName = data.project.project_name || projectId.split('_')[0];
+            if (res.ok) {
+                const data = await res.json();
+                // API直接返回扁平字段: { project_name, project_id, current_phase, progress, ... }
+                this.currentProjectName = data.project_name || this._extractProjectName(projectId);
                 this.updateProjectInfo(
-                    data.project.project_name || projectId,
-                    data.project.current_phase || data.project.phase || 'unknown',
-                    data.project.progress || 0
+                    data.project_name || projectId,
+                    data.current_phase || 'unknown',
+                    data.progress || 0
                 );
+                
+                // 如果项目已完成，显示PLAY按钮
+                if (data.status === 'completed') {
+                    const playBtn = document.getElementById('play-game-btn');
+                    if (playBtn) playBtn.style.display = 'inline-flex';
+                }
+            } else {
+                // API失败时用fallback
+                this.currentProjectName = this._extractProjectName(projectId);
             }
         } catch (e) {
             console.warn('加载项目详情失败', e);
+            this.currentProjectName = this._extractProjectName(projectId);
         }
+    }
+    
+    _extractProjectName(projectId) {
+        // "p10_counter_test_20260213_183223" -> "p10_counter_test"
+        const parts = projectId.split('_');
+        if (parts.length >= 3) {
+            const last = parts[parts.length - 1];
+            const secondLast = parts[parts.length - 2];
+            if (/^\d{6}$/.test(last) && /^\d{8}$/.test(secondLast)) {
+                return parts.slice(0, -2).join('_') || projectId;
+            }
+        }
+        return projectId;
     }
 
     /* ═══════════ 工具 ═══════════ */
@@ -637,10 +660,8 @@ class App {
             return;
         }
         
-        // 从project_id中提取项目名称（去掉时间戳后缀）
-        // project_id格式: "project_name_YYYYMMDD_HHMMSS"
-        // 项目目录名就是project_name
-        const projectName = this.currentProjectName || this.currentProjectId.split('_').slice(0, -2).join('_') || this.currentProjectId;
+        // 使用已解析的projectName，或从project_id中提取
+        const projectName = this.currentProjectName || this._extractProjectName(this.currentProjectId);
         
         // 在新窗口打开游戏 - 使用project_name作为目录
         const gameUrl = `/projects/${projectName}/output/index.html`;

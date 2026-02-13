@@ -85,7 +85,15 @@ def create_app() -> FastAPI:
     app.include_router(http_router, prefix="/api")
     app.include_router(ws_router)
     
-    # 挂载静态文件（前端）
+    # 挂载项目输出目录（用于Play按钮访问游戏文件）
+    projects_dir = Config.PROJECTS_DIR
+    if projects_dir.exists():
+        app.mount("/projects", StaticFiles(directory=str(projects_dir), html=True), name="projects")
+        logger.info(f"项目文件已挂载: {projects_dir}")
+    else:
+        logger.warning(f"项目目录不存在: {projects_dir}")
+    
+    # 挂载静态文件（前端）- 必须在projects之后，因为"/"是catch-all
     frontend_dir = Config.FRONTEND_DIR
     if frontend_dir.exists():
         app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
