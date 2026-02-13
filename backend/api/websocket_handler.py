@@ -42,6 +42,11 @@ class ConnectionManager:
     """
     WebSocket 连接管理器
     负责管理所有活跃的 WebSocket 连接
+    
+    P11增强:
+    - 心跳检测
+    - 消息发送重试
+    - 连接健康状态监控
     """
     
     def __init__(self):
@@ -50,6 +55,12 @@ class ConnectionManager:
         
         # 连接锁（防止并发问题）
         self._lock = asyncio.Lock()
+        
+        # P11: 消息发送失败计数（用于监控）
+        self._send_failures: Dict[str, int] = {}
+        
+        # P11: 最大允许失败次数
+        self._max_failures = 3
     
     async def connect(self, client_id: str, websocket: WebSocket):
         """
@@ -68,11 +79,14 @@ class ConnectionManager:
                 try:
                     if old_ws.client_state == WebSocketState.CONNECTED:
                         await old_ws.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"关闭旧连接失败 ({client_id}): {e}")
             
             # 保存新连接
             self.active_connections[client_id] = websocket
+            
+            # P11: 重置失败计数
+            self._send_failures[client_id] = 0
         
         logger.info(f"✅ WebSocket 连接建立: {client_id} (总连接数: {len(self.active_connections)})")
     
@@ -86,35 +100,61 @@ class ConnectionManager:
         async with self._lock:
             if client_id in self.active_connections:
                 del self.active_connections[client_id]
+            
+            # P11: 清理失败计数
+            if client_id in self._send_failures:
+                del self._send_failures[client_id]
         
         logger.info(f"❌ WebSocket 连接断开: {client_id} (总连接数: {len(self.active_connections)})")
     
-    async def send_personal_message(self, message: Dict[str, Any], client_id: str):
+    async def send_personal_message(self, message: Dict[str, Any], client_id: str, retry: int = 2):
         """
-        发送消息给指定客户端
+        发送消息给指定客户端（P11增强：支持重试）
         
         Args:
             message: 要发送的消息（字典）
             client_id: 目标客户端ID
+            retry: 重试次数（默认2次）
         """
         if client_id not in self.active_connections:
             logger.warning(f"客户端不在线: {client_id}")
-            return
+            return False
         
         websocket = self.active_connections[client_id]
         
-        try:
-            # 转换为 JSON 字符串
-            message_json = json.dumps(message, ensure_ascii=False)
-            
-            # 发送
-            await websocket.send_text(message_json)
-            logger.debug(f"📤 发送消息到 {client_id}: {message.get('event', 'unknown')}")
-            
-        except Exception as e:
-            logger.error(f"发送消息失败 ({client_id}): {e}")
-            # 发送失败，断开连接
-            await self.disconnect(client_id)
+        for attempt in range(retry + 1):
+            try:
+                # 检查连接状态
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    raise ConnectionError("WebSocket未连接")
+                
+                # 转换为 JSON 字符串
+                message_json = json.dumps(message, ensure_ascii=False)
+                
+                # 发送
+                await websocket.send_text(message_json)
+                logger.debug(f"📤 发送消息到 {client_id}: {message.get('event', 'unknown')}")
+                
+                # P11: 成功后重置失败计数
+                self._send_failures[client_id] = 0
+                return True
+                
+            except Exception as e:
+                logger.warning(f"发送消息失败 ({client_id}), 尝试 {attempt+1}/{retry+1}: {e}")
+                
+                # P11: 记录失败
+                self._send_failures[client_id] = self._send_failures.get(client_id, 0) + 1
+                
+                if attempt < retry:
+                    # 短暂等待后重试
+                    await asyncio.sleep(0.5)
+                else:
+                    # 重试耗尽，断开连接
+                    logger.error(f"发送失败次数过多 ({client_id}), 断开连接")
+                    await self.disconnect(client_id)
+                    return False
+        
+        return False
     
     async def broadcast(self, message: Dict[str, Any], exclude: Set[str] = None):
         """
@@ -485,6 +525,17 @@ async def broadcast_phase_change(
         new_phase: 新阶段
         progress: 进度百分比
     """
+    # 同步更新projects_store中的阶段信息（用于HTTP API查询）
+    # 注意：project_id可能是"项目名_时间戳"格式，需要找到对应的存储记录
+    from api.http_routes import projects_store
+    
+    for pid, project in projects_store.items():
+        if pid == project_id or project.get("project_name") == project_id:
+            project["current_phase"] = new_phase
+            project["progress"] = progress
+            project["updated_at"] = datetime.now().isoformat()
+            break
+    
     await manager.broadcast({
         "event": "phase_change",
         "project_id": project_id,
@@ -569,5 +620,27 @@ async def broadcast_error_alert(
         "error_type": error_type,
         "error_message": error_message,
         "agent_id": agent_id,
+        "timestamp": datetime.now().isoformat()
+    })
+
+
+async def broadcast_project_complete(
+    project_id: str,
+    message: str = "",
+    output_dir: str = ""
+):
+    """
+    广播项目完成事件（BUG-014）
+    
+    Args:
+        project_id: 项目ID
+        message: 完成消息
+        output_dir: 输出目录
+    """
+    await manager.broadcast({
+        "event": "project_complete",
+        "project_id": project_id,
+        "message": message or f"🎉 项目 {project_id} 开发完成！",
+        "output_dir": output_dir,
         "timestamp": datetime.now().isoformat()
     })

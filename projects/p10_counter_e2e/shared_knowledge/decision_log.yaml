@@ -3,7 +3,7 @@
 
 决策记录: []
 
-  - id: d84063c6-1394-4001-8c3c-dfb08c010e03
+  - id: 2506f34c-5a99-4e70-9123-7586e68b56f3
     title: 项目立项确认
     question: PM已分析需求并拆解任务,是否确认项目方向?
 
@@ -12,10 +12,10 @@
     options: ['确认,开始策划', '修改需求', '取消项目']
     decision: 确认,开始策划
     timeout: True
-    timestamp: 2026-02-12T19:42:32.930051
+    timestamp: 2026-02-13T18:23:43.601983
     context: {'phase': 'initiation', 'project_name': 'p10_counter_e2e'}
 
-  - id: b5517570-27af-408b-a360-be6883d782e5
+  - id: 7e5ddcb3-c68c-4f9a-a3a4-70baf0413b6a
     title: 策划文档审批
     question: 策划已完成游戏策划文档(GDD),是否批准进入技术设计阶段?
 
@@ -24,24 +24,24 @@ GDD已保存至: shared_knowledge/game_design_doc.md
     options: ['批准,进入技术设计', '需要修改策划']
     decision: 批准,进入技术设计
     timeout: True
-    timestamp: 2026-02-12T19:48:03.536787
+    timestamp: 2026-02-13T18:24:00.339174
     context: {'phase': 'planning', 'gdd_path': 'D:\\Cursor\\AI-Company\\projects\\p10_counter_e2e\\shared_knowledge\\game_design_doc.md'}
 
-  - id: 914ce2f8-3583-4464-afed-6f587057a60d
+  - id: 56eff8c2-3e45-4901-9a50-2cb51fa48c7f
     title: 开发阶段验收
     question: 程序员和美术已完成开发,是否进入测试阶段?
 
 HTML文件: ✅已生成
 JS文件: ✅已生成
-美术素材: 4张图片已生成
+美术素材: 7张图片已生成
 输出目录: D:\Cursor\AI-Company\projects\p10_counter_e2e\output
     options: ['进入测试', '先让我看看代码']
     decision: 进入测试
     timeout: True
-    timestamp: 2026-02-12T19:54:19.702571
+    timestamp: 2026-02-13T18:24:39.661347
     context: {'phase': 'development', 'output_dir': 'D:\\Cursor\\AI-Company\\projects\\p10_counter_e2e\\output'}
 
-  - id: 57664bab-e9d8-43b3-a7c8-45b0043badea
+  - id: 8f322fb1-080c-451a-b229-ad938e1808f7
     title: 项目交付确认
     question: 测试和Bug修复阶段已完成,是否确认交付项目?
 
@@ -50,5 +50,5 @@ Bug状态: ✅ 所有Bug已修复
     options: ['确认交付', '继续修复Bug', '放弃项目']
     decision: 确认交付
     timeout: True
-    timestamp: 2026-02-12T19:59:20.797981
+    timestamp: 2026-02-13T18:24:50.690869
     context: {'phase': 'bug_fixing', 'bug_status': '✅ 所有Bug已修复'}

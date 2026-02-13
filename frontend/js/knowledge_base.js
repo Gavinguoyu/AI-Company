@@ -17,6 +17,7 @@ export class KnowledgeBase {
         
         this.currentProjectId = null;
         this.currentFile = null;
+        this.projectName = null;  // 添加projectName属性
         
         this.bindEvents();
     }
@@ -29,6 +30,12 @@ export class KnowledgeBase {
         this.modal?.querySelector('.modal-overlay')?.addEventListener('click', () => this.close());
     }
     
+    close() {
+        this.modal.style.display = 'none';
+        this.currentProjectId = null;
+        this.currentFile = null;
+    }
+    
     async open(projectId) {
         if (!projectId) {
             alert('请先选择或创建项目');
@@ -38,18 +45,34 @@ export class KnowledgeBase {
         this.currentProjectId = projectId;
         this.modal.style.display = 'flex';
         
+        // 获取project_name - 尝试从API获取或从project_id中提取
+        await this.fetchProjectName(projectId);
+        
         // 加载文件列表
         await this.loadFileList();
     }
     
-    close() {
-        this.modal.style.display = 'none';
-        this.currentProjectId = null;
-        this.currentFile = null;
+    async fetchProjectName(projectId) {
+        try {
+            const res = await fetch(`/api/project/${projectId}/status`);
+            const data = await res.json();
+            if (data.project && data.project.project_name) {
+                this.projectName = data.project.project_name;
+            } else {
+                // 从project_id中提取（去掉时间戳后缀）
+                this.projectName = projectId.split('_').slice(0, -2).join('_') || projectId;
+            }
+        } catch (e) {
+            // 如果API失败，尝试从project_id中提取
+            this.projectName = projectId.split('_').slice(0, -2).join('_') || projectId;
+        }
     }
     
     async loadFileList() {
         try {
+            // 使用project_name作为目录名
+            const projectName = this.projectName || this.currentProjectId;
+            
             // 加载共享知识库文件
             const sharedRes = await fetch(`/api/project/${this.currentProjectId}/files?directory=shared_knowledge`);
             const sharedData = await sharedRes.json();

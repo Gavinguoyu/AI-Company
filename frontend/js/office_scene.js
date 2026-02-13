@@ -141,6 +141,9 @@ export class OfficeScene {
                 walkTarget: null,
                 walkProgress: 0,
                 messageCount: 0,
+                // BUG-011/012: 进度和超时追踪
+                workStartTime: null,
+                isTimeout: false,
             });
         }
     }
@@ -305,14 +308,29 @@ export class OfficeScene {
         const old = a.status;
         a.status = status;
         a.task = task;
+        
+        // BUG-011/012: 记录工作开始时间和超时检测
         if (old !== status) {
             this.spawnParticles(a.x, a.y - 40, this.statusColor(status));
             // P8-2: 状态变化动画
             if (status === 'idle' && old === 'working') {
                 a.celebrateTimer = 60; // 庆祝动画
+                a.workStartTime = null; // 清除工作计时
+                a.isTimeout = false;
             }
             if (status === 'thinking') {
                 a.thinkTimer = 120;
+            }
+            // 记录开始工作/思考的时间
+            if (status === 'working' || status === 'thinking') {
+                if (!a.workStartTime) {
+                    a.workStartTime = Date.now();
+                    a.isTimeout = false;
+                }
+            }
+            if (status === 'idle') {
+                a.workStartTime = null;
+                a.isTimeout = false;
             }
         }
     }
@@ -770,6 +788,71 @@ export class OfficeScene {
             c.font = '10px "Cascadia Code", monospace';
             c.fillText(this.statusText(a.status).toUpperCase(), a.x, a.y + 86);
 
+            // BUG-011: 工作进度条和任务描述
+            if (a.status === 'working' || a.status === 'thinking') {
+                const barW = 80, barH = 4;
+                const barX = a.x - barW / 2;
+                const barY = a.y + 94;
+                
+                // 进度条背景
+                c.fillStyle = 'rgba(255,255,255,.08)';
+                c.fillRect(barX, barY, barW, barH);
+                
+                // 进度条动画（循环流动效果）
+                const t = (this.frameCount * 2) % (barW + 20);
+                const grad = c.createLinearGradient(barX, 0, barX + barW, 0);
+                grad.addColorStop(0, 'transparent');
+                grad.addColorStop(Math.max(0, (t - 20) / barW), 'transparent');
+                grad.addColorStop(Math.min(1, t / barW), sc);
+                grad.addColorStop(Math.min(1, (t + 20) / barW), 'transparent');
+                grad.addColorStop(1, 'transparent');
+                c.fillStyle = grad;
+                c.fillRect(barX, barY, barW, barH);
+                
+                // 像素风进度条边框
+                c.strokeStyle = sc + '44';
+                c.lineWidth = 0.5;
+                c.strokeRect(barX, barY, barW, barH);
+                
+                // 当前任务文字（截短显示）
+                if (a.task) {
+                    c.fillStyle = 'rgba(255,255,255,.35)';
+                    c.font = '9px "Microsoft YaHei", sans-serif';
+                    const taskText = a.task.length > 16 ? a.task.substring(0, 16) + '…' : a.task;
+                    c.fillText(taskText, a.x, a.y + 108);
+                }
+                
+                // BUG-012: 超时检测和提示
+                if (a.workStartTime) {
+                    const elapsed = (Date.now() - a.workStartTime) / 1000; // 秒
+                    const TIMEOUT_THRESHOLD = 120; // 2分钟超时阈值
+                    
+                    // 显示工作时长
+                    const mins = Math.floor(elapsed / 60);
+                    const secs = Math.floor(elapsed % 60);
+                    const timeStr = mins > 0 ? `${mins}m${secs}s` : `${secs}s`;
+                    c.fillStyle = elapsed > TIMEOUT_THRESHOLD ? '#f85149' : 'rgba(255,255,255,.25)';
+                    c.font = '9px "Cascadia Code", monospace';
+                    c.fillText(timeStr, a.x, a.y + 120);
+                    
+                    // 超时警告
+                    if (elapsed > TIMEOUT_THRESHOLD && !a.isTimeout) {
+                        a.isTimeout = true;
+                    }
+                    if (a.isTimeout) {
+                        // 闪烁的超时警告
+                        const blink = Math.sin(this.frameCount * 0.1) > 0;
+                        if (blink) {
+                            c.fillStyle = 'rgba(248,81,73,.15)';
+                            this.rr(c, a.x - 50, a.y + 126, 100, 18, 4, true);
+                            c.fillStyle = '#f85149';
+                            c.font = 'bold 10px "Cascadia Code", monospace';
+                            c.fillText('⚠ TIMEOUT', a.x, a.y + 137);
+                        }
+                    }
+                }
+            }
+
             // 消息计数徽标
             if (a.messageCount > 0) {
                 c.fillStyle = a.accent;
@@ -890,17 +973,20 @@ export class OfficeScene {
         }
 
         if (gs.games.length === 0) {
-            // 空状态
+            // 空状态 - 增强说明
             c.fillStyle = 'rgba(255,255,255,.15)';
             c.font = '11px "Cascadia Code", monospace';
             c.textAlign = 'center';
-            c.fillText('等待游戏生成…', gs.x + gs.w / 2, gs.y + 95);
+            c.fillText('🎮 完成的游戏将显示在这里', gs.x + gs.w / 2, gs.y + 80);
+            c.fillStyle = 'rgba(255,255,255,.1)';
+            c.font = '10px "Microsoft YaHei", sans-serif';
+            c.fillText('点击 +NEW 创建项目开始', gs.x + gs.w / 2, gs.y + 100);
 
             // 像素风加载动画
             const dots = Math.floor(this.frameCount / 20) % 4;
             c.fillStyle = 'rgba(0,255,157,.3)';
             for (let i = 0; i < dots; i++) {
-                c.fillRect(gs.x + gs.w / 2 - 12 + i * 8, gs.y + 110, 4, 4);
+                c.fillRect(gs.x + gs.w / 2 - 12 + i * 8, gs.y + 120, 4, 4);
             }
         } else {
             // 显示最新游戏

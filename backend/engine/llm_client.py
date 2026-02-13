@@ -3,6 +3,10 @@
 职责: 封装LLM API调用，主力使用Gemini 3 Pro，兼容多模型切换
 依赖: google.generativeai, config.py
 被依赖: engine/agent.py
+
+P11新增功能:
+- 集成Context Caching，支持缓存长文档减少Token消耗
+- 添加响应长度限制配置
 """
 
 import os
@@ -36,22 +40,35 @@ from config import Config
 from utils.logger import setup_logger
 from utils.retry import async_retry
 
+# P11: 导入缓存管理器
+try:
+    from engine.context_cache import get_cache_manager, ContextCacheManager
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+
 
 class LLMClient:
     """
     LLM API 客户端
     负责与 Google Gemini API 通信
+    
+    P11新增:
+    - 支持Context Caching减少Token消耗
+    - 支持响应长度限制
     """
     
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: Optional[str] = None, enable_cache: bool = True):
         """
         初始化 LLM 客户端
         
         Args:
             model_name: 模型名称，默认使用配置文件中的模型
+            enable_cache: 是否启用缓存（P11新增）
         """
         self.model_name = model_name or Config.DEFAULT_MODEL
         self.api_key = Config.GOOGLE_API_KEY
+        self.enable_cache = enable_cache and CACHE_AVAILABLE
         
         if not self.api_key:
             raise ValueError("未设置 GOOGLE_API_KEY，请检查 .env 文件")
@@ -79,6 +96,19 @@ class LLMClient:
             log_level=Config.LOG_LEVEL,
             log_to_file=Config.LOG_TO_FILE
         )
+        
+        # P11: 初始化缓存管理器
+        self._cache_manager: Optional[ContextCacheManager] = None
+        if self.enable_cache:
+            try:
+                self._cache_manager = get_cache_manager()
+                self.logger.info("Context Caching 已启用")
+            except Exception as e:
+                self.logger.warning(f"Context Caching 初始化失败: {e}")
+                self.enable_cache = False
+        
+        # P11: 缓存已加载的文档（用于多轮对话）
+        self._cached_documents: Dict[str, str] = {}
         
         self.logger.info(f"LLM客户端初始化成功: {self.model_name}")
     
@@ -180,8 +210,149 @@ class LLMClient:
         return {
             "model_name": self.model_name,
             "api_key_configured": bool(self.api_key),
-            "generation_config": self.generation_config
+            "generation_config": self.generation_config,
+            "cache_enabled": self.enable_cache
         }
+    
+    # ==================== P11新增方法 ====================
+    
+    def cache_document(self, doc_name: str, content: str) -> bool:
+        """
+        缓存文档内容（用于后续请求复用）
+        
+        Args:
+            doc_name: 文档名称（如 "gdd", "tdd"）
+            content: 文档内容
+            
+        Returns:
+            是否成功缓存
+        """
+        if not self.enable_cache:
+            return False
+        
+        self._cached_documents[doc_name] = content
+        self.logger.debug(f"文档已缓存: {doc_name} ({len(content)}字符)")
+        return True
+    
+    def clear_cached_documents(self):
+        """清除已缓存的文档"""
+        self._cached_documents.clear()
+        self.logger.debug("已清除所有缓存的文档")
+    
+    def get_cached_documents_summary(self) -> Dict[str, int]:
+        """获取已缓存文档的摘要（名称 -> 字符数）"""
+        return {name: len(content) for name, content in self._cached_documents.items()}
+    
+    async def generate_response_with_cached_context(
+        self,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        max_response_tokens: int = None
+    ) -> str:
+        """
+        使用缓存的上下文生成响应（P11优化版）
+        
+        这个方法会：
+        1. 将缓存的文档作为上下文
+        2. 只发送用户消息和必要的系统提示
+        3. 大幅减少重复发送的Token
+        
+        Args:
+            user_message: 用户消息
+            system_prompt: 系统提示词
+            max_response_tokens: 最大响应Token数（可选）
+            
+        Returns:
+            LLM生成的响应文本
+        """
+        try:
+            # 构建提示
+            prompt_parts = []
+            
+            # 添加缓存的文档（如果有）
+            if self._cached_documents:
+                doc_context = "## 参考文档\n\n"
+                for doc_name, content in self._cached_documents.items():
+                    # 限制每个文档的大小，避免过大
+                    max_doc_size = 5000  # 字符
+                    truncated = content[:max_doc_size]
+                    if len(content) > max_doc_size:
+                        truncated += f"\n... (已截断，原文档{len(content)}字符)"
+                    doc_context += f"### {doc_name}\n{truncated}\n\n"
+                prompt_parts.append(doc_context)
+            
+            # 添加系统提示词
+            if system_prompt:
+                prompt_parts.append(f"## 系统角色定义\n{system_prompt}\n")
+            
+            # 添加用户消息
+            prompt_parts.append(f"**用户**: {user_message}")
+            
+            # 合并提示
+            full_prompt = "\n\n".join(prompt_parts)
+            
+            # 检查是否使用缓存API
+            if self.enable_cache and self._cache_manager and len(self._cached_documents) > 0:
+                # 尝试使用缓存
+                combined_docs = "\n\n".join(
+                    f"### {name}\n{content[:3000]}"
+                    for name, content in self._cached_documents.items()
+                )
+                
+                cache_name = await self._cache_manager.cache_content(
+                    content=combined_docs,
+                    display_name=f"docs_{hash(combined_docs) % 10000}"
+                )
+                
+                if cache_name:
+                    # 使用缓存生成
+                    response = await self._cache_manager.generate_with_cache(
+                        cache_name=cache_name,
+                        new_prompt=user_message,
+                        system_instruction=system_prompt
+                    )
+                    if response:
+                        self.logger.info("✅ 使用缓存生成响应成功")
+                        return response
+            
+            # 回退到普通生成
+            self.logger.debug(f"调用 LLM: {self.model_name}")
+            self.logger.debug(f"提示词长度: {len(full_prompt)} 字符")
+            
+            # 配置生成参数
+            gen_config = self.generation_config.copy()
+            if max_response_tokens:
+                gen_config["max_output_tokens"] = max_response_tokens
+            
+            # 在线程池中调用同步API
+            loop = asyncio.get_event_loop()
+            model = genai.GenerativeModel(
+                model_name=self.model_name,
+                generation_config=gen_config
+            )
+            
+            response = await loop.run_in_executor(
+                None,
+                lambda: model.generate_content(full_prompt)
+            )
+            
+            response_text = response.text
+            
+            self.logger.info("LLM 响应完成")
+            self.logger.debug(f"响应长度: {len(response_text)} 字符")
+            
+            return response_text
+            
+        except Exception as e:
+            error_msg = f"LLM API 调用失败: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            raise RuntimeError(error_msg)
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息"""
+        if self.enable_cache and self._cache_manager:
+            return self._cache_manager.get_stats()
+        return {"cache_enabled": False}
 
 
 # 测试代码

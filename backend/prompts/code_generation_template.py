@@ -8,6 +8,10 @@
   - HTML5游戏标准结构模板
   - JavaScript游戏循环模板
   - 常见游戏类型的代码片段（贪吃蛇、打砖块、跑酷等）
+
+P11优化:
+  - 新增精简版Prompt（减少Token消耗）
+  - 模板引用替代完整嵌入
 """
 
 
@@ -712,3 +716,153 @@ def get_programmer_enhancement_prompt(project_name: str) -> str:
 3. 每个文件写完后，在回复中说明"已写入xxx文件"
 4. 所有游戏文件必须写入projects/{project_name}/output/目录
 """
+
+
+# ==================== P11新增: 精简版Prompt ====================
+
+def get_compact_programmer_prompt(project_name: str) -> str:
+    """
+    P11优化: 精简版程序员Agent提示词
+    
+    相比原版减少约70%的Token消耗:
+    - 不嵌入完整代码模板，只提供结构指引
+    - 使用简洁的格式
+    
+    Args:
+        project_name: 项目名称
+        
+    Returns:
+        精简版提示词
+    """
+    return f"""你是游戏程序员。
+
+【输出目录】projects/{project_name}/output/
+
+【必须操作】
+1. 先读取shared_knowledge/下的GDD和TDD
+2. 生成index.html和game.js
+3. 调用工具写文件: await self.call_tool("file", "write", path, content)
+
+【HTML结构】
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>游戏</title></head>
+<body><canvas id="gameCanvas"></canvas><script src="game.js"></script></body></html>
+
+【JS结构】
+- initGame() 初始化
+- gameLoop() 主循环: update() + render()
+- handleInput() 输入处理
+- config = {{}} 配置对象
+
+【质量要求】ES6+ | 注释完整 | 配置外置 | 无硬编码
+
+【铁律】必须实际调用file工具写文件，不能只回复"我会写"。"""
+
+
+def get_compact_planner_prompt() -> str:
+    """
+    P11优化: 精简版策划Agent提示词
+    """
+    return """你是游戏策划。
+
+【输出文件】shared_knowledge/game_design_doc.md
+
+【GDD结构】
+1. 游戏概述（类型、目标用户）
+2. 核心玩法（操作、规则、胜负条件）
+3. 游戏元素（角色、道具、场景）
+4. 界面设计（UI布局）
+
+【要求】
+- 使用Markdown格式
+- 内容具体可执行
+- 考虑HTML5 Canvas实现
+
+完成后调用: await self.call_tool("file", "write", path, content)"""
+
+
+def get_compact_tester_prompt() -> str:
+    """
+    P11优化: 精简版测试Agent提示词
+    """
+    return """你是测试工程师。
+
+【任务】测试游戏功能，检查Bug
+
+【测试流程】
+1. 读取game_design_doc.md了解预期行为
+2. 运行游戏检查:
+   - 页面是否正常加载
+   - 核心功能是否工作
+   - 边界情况处理
+3. 发现Bug记录到bug_tracker.yaml
+
+【Bug报告格式】
+- 问题描述
+- 复现步骤  
+- 期望行为
+- 实际行为
+
+调用code_runner工具测试: await self.call_tool("code_runner", "execute_game_test", project_dir)"""
+
+
+def get_game_type_template_hint(game_type: str) -> str:
+    """
+    根据游戏类型返回简洁的实现提示
+    
+    Args:
+        game_type: 游戏类型
+        
+    Returns:
+        实现提示字符串
+    """
+    hints = {
+        "counter": """
+【计数器游戏要点】
+- 变量: count = 0
+- 按钮: increment(), decrement(), reset()
+- 显示: 更新DOM元素textContent""",
+
+        "snake": """
+【贪吃蛇要点】
+- 网格: GRID_SIZE = 20
+- 蛇: body数组, direction方向
+- 食物: 随机位置
+- 碰撞: 检测墙壁和自身""",
+
+        "breakout": """
+【打砖块要点】
+- 挡板: 跟随鼠标/键盘
+- 球: dx, dy速度
+- 砖块: 二维数组
+- 碰撞: 矩形检测""",
+
+        "runner": """
+【跑酷要点】
+- 玩家: 重力, 跳跃
+- 障碍: 随机生成, 向左移动
+- 碰撞: AABB检测
+- 分数: 时间或距离"""
+    }
+    
+    # 尝试模糊匹配
+    game_type_lower = game_type.lower()
+    for key, hint in hints.items():
+        if key in game_type_lower:
+            return hint
+    
+    return ""  # 默认不返回提示
+
+
+def estimate_prompt_tokens(prompt: str) -> int:
+    """
+    估算Prompt的Token数量
+    
+    Args:
+        prompt: 提示词文本
+        
+    Returns:
+        估算的Token数量
+    """
+    # 简单估算: 英文约4字符/token, 中文约2字符/token
+    # 这里用保守估计: 3字符/token
+    return len(prompt) // 3

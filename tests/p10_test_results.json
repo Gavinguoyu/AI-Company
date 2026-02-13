@@ -1,0 +1,184 @@
+{
+  "timestamp": "2026-02-13 18:33:58",
+  "total": 35,
+  "passed": 34,
+  "failed": 1,
+  "elapsed_seconds": 96.5131413936615,
+  "results": [
+    {
+      "name": "Health endpoint returns 200",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Status is healthy",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Service name correct",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Projects endpoint returns 200",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Has total field",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Has projects array",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "WS connected event received",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "WS client_id correct",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "WS ping/pong works",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Frontend returns 200",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "HTML content returned",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Has office-canvas element",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "API docs accessible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Create project returns 200",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Project creation success",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Project ID returned",
+      "passed": true,
+      "detail": "p10_counter_test_20260213_183223"
+    },
+    {
+      "name": "Workflow completed within timeout",
+      "passed": true,
+      "detail": "90s elapsed"
+    },
+    {
+      "name": "Workflow status is completed",
+      "passed": true,
+      "detail": "actual: completed"
+    },
+    {
+      "name": "Multiple phases observed",
+      "passed": false,
+      "detail": "phases: {'立项'}"
+    },
+    {
+      "name": "Project directory exists",
+      "passed": true,
+      "detail": "D:\\Cursor\\AI-Company\\projects\\p10_counter_test"
+    },
+    {
+      "name": "Knowledge file: project_rules.yaml",
+      "passed": true,
+      "detail": "1182 bytes"
+    },
+    {
+      "name": "Knowledge file: game_design_doc.md",
+      "passed": true,
+      "detail": "572 bytes"
+    },
+    {
+      "name": "Knowledge file: tech_design_doc.md",
+      "passed": true,
+      "detail": "655 bytes"
+    },
+    {
+      "name": "Knowledge file: api_registry.yaml",
+      "passed": true,
+      "detail": "343 bytes"
+    },
+    {
+      "name": "Knowledge file: config_tables.yaml",
+      "passed": true,
+      "detail": "67 bytes"
+    },
+    {
+      "name": "Knowledge file: art_asset_list.yaml",
+      "passed": true,
+      "detail": "76 bytes"
+    },
+    {
+      "name": "Knowledge file: bug_tracker.yaml",
+      "passed": true,
+      "detail": "67 bytes"
+    },
+    {
+      "name": "Knowledge file: decision_log.yaml",
+      "passed": true,
+      "detail": "2246 bytes"
+    },
+    {
+      "name": "Output index.html exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Output game.js exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "HTML has <html> tag",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "HTML has <canvas> or <body>",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "HTML file size > 100 bytes",
+      "passed": true,
+      "detail": "2052 bytes"
+    },
+    {
+      "name": "JS file size > 100 bytes",
+      "passed": true,
+      "detail": "3165 bytes"
+    },
+    {
+      "name": "Art assets generated",
+      "passed": true,
+      "detail": "3 PNG files"
+    }
+  ]
+}

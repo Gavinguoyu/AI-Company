@@ -37,8 +37,122 @@ class App {
         this.knowledgeBase = null;
         this.currentProjectId = null;
         this.logCount = 0;
+        
+        // P11: 新增状态
+        this.isLoading = false;
+        this.hasShownWelcome = false;
 
         this.init();
+    }
+    
+    // P11: 显示加载指示器
+    showLoading(message = '处理中...') {
+        this.isLoading = true;
+        let loader = document.getElementById('global-loader');
+        if (!loader) {
+            loader = document.createElement('div');
+            loader.id = 'global-loader';
+            loader.innerHTML = `
+                <div class="loader-backdrop"></div>
+                <div class="loader-content">
+                    <div class="loader-spinner"></div>
+                    <div class="loader-text">${message}</div>
+                </div>
+            `;
+            document.body.appendChild(loader);
+        } else {
+            loader.querySelector('.loader-text').textContent = message;
+            loader.style.display = 'flex';
+        }
+    }
+    
+    // P11: 隐藏加载指示器
+    hideLoading() {
+        this.isLoading = false;
+        const loader = document.getElementById('global-loader');
+        if (loader) loader.style.display = 'none';
+    }
+    
+    // P11: 显示友好的错误提示
+    showError(title, message, duration = 5000) {
+        this.addLog('error', `${title}: ${message}`);
+        
+        let toast = document.getElementById('error-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'error-toast';
+            toast.className = 'toast error';
+            document.body.appendChild(toast);
+        }
+        
+        toast.innerHTML = `<strong>${this.esc(title)}</strong><br><span>${this.esc(message)}</span>`;
+        toast.style.display = 'block';
+        toast.style.animation = 'slideIn 0.3s ease';
+        
+        // 自动关闭
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => { toast.style.display = 'none'; }, 300);
+        }, duration);
+    }
+    
+    // P11: 显示成功提示
+    showSuccess(message, duration = 3000) {
+        let toast = document.getElementById('success-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'success-toast';
+            toast.className = 'toast success';
+            document.body.appendChild(toast);
+        }
+        
+        toast.innerHTML = `<span>${this.esc(message)}</span>`;
+        toast.style.display = 'block';
+        toast.style.animation = 'slideIn 0.3s ease';
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => { toast.style.display = 'none'; }, 300);
+        }, duration);
+    }
+    
+    // P11: 显示首次使用引导
+    showWelcomeGuide() {
+        if (this.hasShownWelcome) return;
+        this.hasShownWelcome = true;
+        
+        // 检查是否已显示过
+        if (localStorage.getItem('ai_company_guide_shown')) return;
+        
+        const guide = document.createElement('div');
+        guide.id = 'welcome-guide';
+        guide.innerHTML = `
+            <div class="guide-overlay"></div>
+            <div class="guide-content">
+                <h2>🎮 欢迎来到 AI 游戏公司</h2>
+                <p>这是一个由 5 个 AI Agent 协作开发游戏的平台：</p>
+                <ul>
+                    <li><strong>👔 PM</strong> - 项目经理，协调任务</li>
+                    <li><strong>📋 策划</strong> - 编写游戏设计文档</li>
+                    <li><strong>💻 程序</strong> - 编写游戏代码</li>
+                    <li><strong>🎨 美术</strong> - 生成游戏素材</li>
+                    <li><strong>🧪 测试</strong> - 测试游戏功能</li>
+                </ul>
+                <p>点击 <strong>▶ CREATE PROJECT</strong> 开始创建您的第一个游戏！</p>
+                <button class="guide-close-btn">开始体验</button>
+            </div>
+        `;
+        document.body.appendChild(guide);
+        
+        guide.querySelector('.guide-close-btn').addEventListener('click', () => {
+            guide.remove();
+            localStorage.setItem('ai_company_guide_shown', 'true');
+        });
+        
+        guide.querySelector('.guide-overlay').addEventListener('click', () => {
+            guide.remove();
+            localStorage.setItem('ai_company_guide_shown', 'true');
+        });
     }
 
     init() {
@@ -65,6 +179,9 @@ class App {
 
         // 加载项目
         this.loadProjects();
+        
+        // P11: 延迟显示欢迎引导（等待页面完全加载）
+        setTimeout(() => this.showWelcomeGuide(), 1500);
 
         console.log('✅ App ready');
     }
@@ -154,6 +271,20 @@ class App {
             this.addLog('error', `错误: ${data.error_message}`);
         });
 
+        // BUG-014: 项目完成事件
+        this.ws.on('project_complete', data => {
+            this.addLog('phase', `🎉 ${data.message || '项目开发完成！'}`);
+            // 显示PLAY按钮
+            const playBtn = document.getElementById('play-game-btn');
+            if (playBtn) playBtn.style.display = 'inline-flex';
+            // 重置办公室中所有Agent的状态
+            if (this.officeScene) {
+                ['pm', 'planner', 'programmer', 'artist', 'tester'].forEach(id => {
+                    this.officeScene.updateAgentStatus(id, 'idle', '');
+                });
+            }
+        });
+
         this.ws.connect();
     }
 
@@ -214,61 +345,31 @@ class App {
         // 1. 显示顶栏决策指示灯
         this.showDecisionIndicator();
         
-        // 2. 弹出模态决策窗口（优先级高）
+        // 2. 弹出模态决策窗口（唯一决策入口）
         this.showDecisionModal(data);
         
-        // 3. 同时更新老板对话框（备用）
-        const chat = document.getElementById('boss-chat');
+        // 3. 在老板对话框中显示决策记录（仅日志，不含决策按钮）
         const msgContainer = document.getElementById('boss-messages');
-        const actionsContainer = document.getElementById('boss-actions');
-        if (!chat || !msgContainer || !actionsContainer) return;
-
-        // 展开对话框
-        chat.classList.remove('collapsed');
+        if (!msgContainer) return;
 
         // 清空欢迎消息
         const welcome = msgContainer.querySelector('.boss-welcome');
         if (welcome) welcome.remove();
 
-        // 显示来自Agent的决策请求
+        // 显示来自Agent的决策请求（仅作记录）
         const msg = document.createElement('div');
         msg.className = 'boss-msg from-agent';
         msg.innerHTML = `
             <div class="boss-msg-sender">${this.agentLabel(data.agent_id || 'pm')}</div>
             <div>${this.esc(data.question || '需要您的决策')}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">💡 请在弹出的决策窗口中做出选择</div>
         `;
         msgContainer.appendChild(msg);
         msgContainer.scrollTop = msgContainer.scrollHeight;
 
-        // 显示决策按钮
-        const options = data.options || ['继续', '取消'];
-        actionsContainer.style.display = 'flex';
-        actionsContainer.innerHTML = options.map((opt, i) =>
-            `<button class="boss-decision-btn" data-option="${this.esc(opt)}" data-id="${data.decision_id || ''}">${this.esc(opt)}</button>`
-        ).join('');
-
-        actionsContainer.querySelectorAll('.boss-decision-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const choice = btn.dataset.option;
-                const decisionId = btn.dataset.id;
-
-                // 发送决策
-                this.submitDecision(decisionId, choice);
-
-                // 显示老板的回复
-                const reply = document.createElement('div');
-                reply.className = 'boss-msg from-boss';
-                reply.innerHTML = `<div class="boss-msg-sender">👔 老板</div><div>我选择: ${this.esc(choice)}</div>`;
-                msgContainer.appendChild(reply);
-                msgContainer.scrollTop = msgContainer.scrollHeight;
-
-                // 隐藏按钮
-                actionsContainer.style.display = 'none';
-            });
-        });
-
         // 未读提示
-        if (chat.classList.contains('collapsed')) {
+        const chat = document.getElementById('boss-chat');
+        if (chat?.classList.contains('collapsed')) {
             const badge = document.getElementById('boss-unread');
             if (badge) {
                 badge.style.display = 'inline';
@@ -312,11 +413,19 @@ class App {
         
         if (!modal || !titleEl || !questionEl || !optionsEl) return;
         
-        // 设置标题和问题
-        const title = data.question?.split(':')[0] || '老板决策';
-        const question = data.question || '需要您的决策';
+        // 设置标题和问题（BUG-004: 支持多行格式化显示）
+        const rawQuestion = data.question || '需要您的决策';
+        // 从question中提取标题（第一行或冒号前的部分）
+        const titleMatch = rawQuestion.match(/^(.+?)[:：]/);
+        const title = titleMatch ? titleMatch[1].trim() : '老板决策';
         titleEl.textContent = title;
-        questionEl.textContent = question;
+        
+        // 格式化问题文本：将换行和要点转换为HTML
+        const formattedQuestion = this.esc(rawQuestion)
+            .replace(/\n/g, '<br>')
+            .replace(/•/g, '&bull;')
+            .replace(/⏭️|📋|📝|📊|✅|🔄|❌|💡|🎮|🐛|📁|⚙️/g, match => `<span style="font-size:1.1em">${match}</span>`);
+        questionEl.innerHTML = formattedQuestion;
         
         // 生成决策选项按钮
         const options = data.options || ['继续', '取消'];
@@ -338,6 +447,19 @@ class App {
                 
                 // 隐藏指示灯
                 this.hideDecisionIndicator();
+                
+                // BUG-003: 在boss-chat中记录决策结果
+                const msgContainer = document.getElementById('boss-messages');
+                if (msgContainer) {
+                    const reply = document.createElement('div');
+                    reply.className = 'boss-msg from-boss';
+                    reply.innerHTML = `<div class="boss-msg-sender">👔 老板</div><div>决策: ${this.esc(choice)}</div>`;
+                    msgContainer.appendChild(reply);
+                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                }
+                
+                // 添加日志
+                this.addLog('decision', `👔 老板决策: ${choice}`);
             });
         });
         
@@ -419,8 +541,13 @@ class App {
             const fd = new FormData(form);
             const name = fd.get('name');
             const desc = fd.get('description');
-            if (!name || !desc) return;
+            if (!name || !desc) {
+                this.showError('输入错误', '请填写项目名称和游戏描述');
+                return;
+            }
 
+            // P11: 使用加载指示器
+            this.showLoading('正在创建项目...');
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '创建中…'; }
 
@@ -435,13 +562,16 @@ class App {
                     closeModal();
                     this.selectProject(data.project_id);
                     this.addLog('system', `项目创建成功: ${data.project_id}`);
+                    // P11: 显示成功提示
+                    this.showSuccess(`项目 "${name}" 创建成功！`);
                 } else {
                     throw new Error(data.message || '创建失败');
                 }
             } catch (err) {
-                this.addLog('error', `创建项目失败: ${err.message}`);
-                alert('创建失败: ' + err.message);
+                // P11: 使用友好错误提示
+                this.showError('创建项目失败', err.message);
             } finally {
+                this.hideLoading();
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '▶ START'; }
             }
         });
@@ -454,7 +584,7 @@ class App {
             const res = await fetch('/api/projects');
             const data = await res.json();
             if (data.projects?.length > 0) {
-                this.selectProject(data.projects[0].id);
+                this.selectProject(data.projects[0].project_id || data.projects[0].id);
             }
         } catch (e) {
             console.warn('加载项目列表失败', e);
@@ -469,9 +599,11 @@ class App {
             const res = await fetch(`/api/project/${projectId}/status`);
             const data = await res.json();
             if (data.project) {
+                // 保存project_name用于知识库和游戏访问
+                this.currentProjectName = data.project.project_name || projectId.split('_')[0];
                 this.updateProjectInfo(
-                    data.project.name || projectId,
-                    data.project.phase || 'unknown',
+                    data.project.project_name || projectId,
+                    data.project.current_phase || data.project.phase || 'unknown',
                     data.project.progress || 0
                 );
             }
@@ -505,8 +637,15 @@ class App {
             return;
         }
         
-        // 在新窗口打开游戏
-        const gameUrl = `/projects/${this.currentProjectId}/output/index.html`;
+        // 从project_id中提取项目名称（去掉时间戳后缀）
+        // project_id格式: "project_name_YYYYMMDD_HHMMSS"
+        // 项目目录名就是project_name
+        const projectName = this.currentProjectName || this.currentProjectId.split('_').slice(0, -2).join('_') || this.currentProjectId;
+        
+        // 在新窗口打开游戏 - 使用project_name作为目录
+        const gameUrl = `/projects/${projectName}/output/index.html`;
+        console.log('🎮 Opening game:', gameUrl);
+        
         const gameWindow = window.open(gameUrl, 'game_window', 'width=800,height=600');
         
         if (!gameWindow) {

@@ -127,6 +127,74 @@ running_workflows: Dict[str, GameDevWorkflow] = {}
 
 
 # =====================================================
+# 辅助函数
+# =====================================================
+
+def _resolve_project_dir(project_id: str) -> Optional[Path]:
+    """
+    从磁盘上解析项目目录路径。不依赖内存中的 projects_store。
+    
+    查找策略（按优先级）：
+    1. 从 projects_store 中获取 project_name
+    2. project_id 作为目录名直接匹配（projects/{project_id}/）
+    3. 从 project_id 中提取 project_name（去掉时间戳后缀）
+    4. 遍历磁盘上的所有项目目录做模糊匹配
+    
+    Args:
+        project_id: 项目ID或项目名称
+        
+    Returns:
+        项目目录的 Path 对象，找不到则返回 None
+    """
+    projects_root = Config.PROJECTS_DIR
+    
+    # 策略1: 从内存store中获取project_name
+    project = projects_store.get(project_id)
+    if project:
+        project_name = project.get("project_name", "")
+        if project_name:
+            candidate = projects_root / project_name
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+    
+    # 策略2: project_id直接作为目录名
+    candidate = projects_root / project_id
+    if candidate.exists() and candidate.is_dir():
+        return candidate
+    
+    # 策略3: 从project_id中提取project_name（去掉 _YYYYMMDD_HHMMSS 时间戳后缀）
+    # 例如: "11_20260213_200851" -> "11"
+    # 例如: "p10_counter_test_20260213_183223" -> "p10_counter_test"
+    parts = project_id.split("_")
+    if len(parts) >= 3:
+        # 检查最后两部分是否像时间戳 (纯数字，长度为8和6)
+        last = parts[-1]
+        second_last = parts[-2]
+        if (last.isdigit() and len(last) == 6 and 
+            second_last.isdigit() and len(second_last) == 8):
+            project_name = "_".join(parts[:-2])
+            candidate = projects_root / project_name
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+    
+    # 策略4: 遍历磁盘上的项目目录，看project_id是否以某个目录名开头
+    if projects_root.exists():
+        for d in projects_root.iterdir():
+            if d.is_dir() and project_id.startswith(d.name):
+                return d
+    
+    # 策略5: 从内存store中按project_name反向查找
+    for pid, p in projects_store.items():
+        if p.get("project_name") == project_id:
+            project_name = p.get("project_name")
+            candidate = projects_root / project_name
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+    
+    return None
+
+
+# =====================================================
 # API 路由定义
 # =====================================================
 
@@ -259,11 +327,48 @@ async def get_project_status(project_id: str):
         项目当前状态信息
     """
     try:
-        # 查找项目
+        # 查找项目 - 先从内存查找
         project = projects_store.get(project_id)
         
         if not project:
-            raise HTTPException(status_code=404, detail=f"项目不存在: {project_id}")
+            # 从内存中按project_name查找
+            for pid, p in projects_store.items():
+                if p.get("project_name") == project_id:
+                    project = p
+                    break
+        
+        if not project:
+            # 从磁盘恢复项目基本信息（内存store可能因重启丢失）
+            project_dir = _resolve_project_dir(project_id)
+            if project_dir:
+                # 从project_id中提取project_name
+                parts = project_id.split("_")
+                if len(parts) >= 3 and parts[-1].isdigit() and parts[-2].isdigit():
+                    project_name = "_".join(parts[:-2])
+                else:
+                    project_name = project_dir.name
+                
+                # 构建一个基本的项目记录
+                project = {
+                    "project_id": project_id,
+                    "project_name": project_name,
+                    "game_idea": "",
+                    "status": "completed",
+                    "current_phase": "已完成",
+                    "progress": 100.0,
+                    "tasks_completed": 0,
+                    "tasks_total": 14,
+                    "agents_status": {
+                        "pm": "idle", "planner": "idle",
+                        "programmer": "idle", "artist": "idle", "tester": "idle"
+                    },
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat()
+                }
+                # 恢复到内存store
+                projects_store[project_id] = project
+            else:
+                raise HTTPException(status_code=404, detail=f"项目不存在: {project_id}")
         
         logger.debug(f"查询项目状态: {project_id}")
         
@@ -294,6 +399,9 @@ async def list_projects(
         项目列表
     """
     try:
+        # 从磁盘扫描补充不在内存中的项目
+        _scan_disk_projects()
+        
         # 获取所有项目
         all_projects = list(projects_store.values())
         
@@ -302,7 +410,7 @@ async def list_projects(
             all_projects = [p for p in all_projects if p["status"] == status]
         
         # 按创建时间倒序排序
-        all_projects.sort(key=lambda x: x["created_at"], reverse=True)
+        all_projects.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         
         # 分页
         total = len(all_projects)
@@ -414,26 +522,25 @@ async def get_project_file(project_id: str, path: str):
     获取项目文件内容
     
     Args:
-        project_id: 项目ID
+        project_id: 项目ID（支持 project_id 或 project_name）
         path: 文件路径（相对于项目目录）
     
     Returns:
         文件内容和元信息
     """
     try:
-        if project_id not in projects_store:
+        # 解析项目目录 - 优先从磁盘查找，不依赖内存store
+        project_dir = _resolve_project_dir(project_id)
+        if not project_dir:
             raise HTTPException(status_code=404, detail=f"项目不存在: {project_id}")
         
-        # 构建完整文件路径
-        from pathlib import Path
-        project_dir = Config.PROJECTS_DIR / project_id
         file_path = project_dir / path
         
         # 安全检查：确保文件在项目目录内
         try:
             file_path = file_path.resolve()
-            project_dir = project_dir.resolve()
-            if not str(file_path).startswith(str(project_dir)):
+            project_dir_resolved = project_dir.resolve()
+            if not str(file_path).startswith(str(project_dir_resolved)):
                 raise HTTPException(status_code=403, detail="访问被拒绝：文件路径不合法")
         except Exception:
             raise HTTPException(status_code=403, detail="访问被拒绝：文件路径不合法")
@@ -450,7 +557,6 @@ async def get_project_file(project_id: str, path: str):
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
         except UnicodeDecodeError:
-            # 如果不是文本文件，返回错误
             raise HTTPException(status_code=400, detail="不支持读取二进制文件")
         
         # 获取文件信息
@@ -551,33 +657,38 @@ async def list_project_files(project_id: str, directory: str = ""):
     列出项目文件列表
     
     Args:
-        project_id: 项目ID
+        project_id: 项目ID（支持 project_id 或 project_name）
         directory: 目录路径（相对于项目目录，默认为根目录）
     
     Returns:
         文件和目录列表
     """
     try:
-        if project_id not in projects_store:
+        # 解析项目目录 - 优先从磁盘查找，不依赖内存store
+        project_dir = _resolve_project_dir(project_id)
+        if not project_dir:
             raise HTTPException(status_code=404, detail=f"项目不存在: {project_id}")
         
-        # 构建完整目录路径
-        from pathlib import Path
-        project_dir = Config.PROJECTS_DIR / project_id
         target_dir = project_dir / directory if directory else project_dir
         
         # 安全检查
         try:
-            target_dir = target_dir.resolve()
-            project_dir = project_dir.resolve()
-            if not str(target_dir).startswith(str(project_dir)):
+            target_dir_resolved = target_dir.resolve()
+            project_dir_resolved = project_dir.resolve()
+            if not str(target_dir_resolved).startswith(str(project_dir_resolved)):
                 raise HTTPException(status_code=403, detail="访问被拒绝：目录路径不合法")
         except Exception:
             raise HTTPException(status_code=403, detail="访问被拒绝：目录路径不合法")
         
         # 检查目录是否存在
         if not target_dir.exists():
-            raise HTTPException(status_code=404, detail=f"目录不存在: {directory}")
+            # 返回空列表而不是404，让前端能优雅处理
+            return {
+                "success": True,
+                "directory": directory,
+                "items": [],
+                "total": 0
+            }
         
         if not target_dir.is_dir():
             raise HTTPException(status_code=400, detail=f"不是目录: {directory}")

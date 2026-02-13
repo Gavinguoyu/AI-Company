@@ -733,11 +733,23 @@ body {
 }
 
 .decision-question {
-    font-size: 15px;
+    font-size: 14px;
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.7;
     margin: 0;
     white-space: pre-wrap;
+    max-height: 320px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--neon) transparent;
+}
+
+.decision-question::-webkit-scrollbar {
+    width: 4px;
+}
+.decision-question::-webkit-scrollbar-thumb {
+    background: var(--neon);
+    border-radius: 2px;
 }
 
 .decision-body {
@@ -1120,4 +1132,201 @@ body {
     .boss-chat { width: 90%; right: 5%; }
     .decision-box { max-width: 90%; margin: 20px; }
     .file-view-box { width: 95%; max-height: 90vh; }
+}
+
+/* ════════ P11: 加载指示器 ════════ */
+#global-loader {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.loader-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.loader-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px 48px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.loader-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loader-text {
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+}
+
+/* ════════ P11: Toast 通知 ════════ */
+.toast {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    max-width: 360px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    font-family: var(--font-ui);
+}
+
+.toast.error {
+    background: linear-gradient(135deg, #3d1f1f 0%, #2d1515 100%);
+    border: 1px solid var(--red);
+    color: #ffb4b4;
+}
+
+.toast.error strong {
+    color: var(--red);
+}
+
+.toast.success {
+    background: linear-gradient(135deg, #1f3d2a 0%, #152d1d 100%);
+    border: 1px solid var(--green);
+    color: #b4ffb4;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* ════════ P11: 欢迎引导 ════════ */
+#welcome-guide {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.guide-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.guide-content {
+    position: relative;
+    max-width: 500px;
+    padding: 32px 40px;
+    background: var(--bg2);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    box-shadow: 0 0 60px rgba(88, 166, 255, 0.2);
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.guide-content h2 {
+    margin-bottom: 16px;
+    color: var(--accent);
+    font-size: 22px;
+}
+
+.guide-content p {
+    margin-bottom: 12px;
+    color: var(--text);
+    line-height: 1.6;
+}
+
+.guide-content ul {
+    margin: 16px 0 20px 0;
+    padding-left: 24px;
+}
+
+.guide-content li {
+    margin-bottom: 8px;
+    color: var(--text-dim);
+    line-height: 1.5;
+}
+
+.guide-content li strong {
+    color: var(--text);
+}
+
+.guide-close-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--accent) 0%, #3d8bff 100%);
+    border: none;
+    border-radius: 8px;
+    color: #000;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.guide-close-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(88, 166, 255, 0.4);
+}
+
+.guide-close-btn:active {
+    transform: translateY(0);
 }

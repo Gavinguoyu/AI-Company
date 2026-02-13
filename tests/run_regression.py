@@ -24,19 +24,20 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # 测试列表：(名称, 测试文件, 测试函数名)
+# 注意：测试文件可能位于项目根目录或tests目录
 TESTS: List[Tuple[str, str, str]] = [
-    ("P1-LLM客户端基础", "test_p0_p1_integration.py", "test_llm_client"),
-    ("P2-消息总线路由", "test_p2_integration.py", "test_message_routing"),
-    ("P3-文件工具读写", "test_p3_tools.py", "test_file_tool"),
-    ("P4-工作流初始化", "test_p4_workflow.py", "test_workflow_init"),
-    ("P5-API健康检查", "test_p5_web_api.py", "test_health_check"),
+    ("P1-LLM客户端基础", "../test_p0_p1_integration.py", "test_llm_client"),
+    ("P2-消息总线路由", "../test_p2_integration.py", "test_message_routing"),
+    ("P3-文件工具读写", "../test_p3_tools.py", "test_file_tool"),
+    ("P4-工作流初始化", "../test_p4_workflow.py", "test_workflow_init"),
+    ("P5-API健康检查", "../test_p5_web_api.py", "test_health_check"),
     # P6完成后添加:
-    # ("P6-WebSocket连接", "test_p6.py", "test_websocket_connection"),
+    # ("P6-WebSocket连接", "../test_p6.py", "test_websocket_connection"),
     # P7完成后添加:
-    # ("P7-决策机制", "test_p7.py", "test_decision_mechanism"),
+    ("P7-决策机制", "test_p7_decision.py", "test_decision"),
     # P8无需添加（P8是完整测试，不是单元测试）
     # P9完成后添加:
-    # ("P9-图片生成", "test_p9.py", "test_image_generation"),
+    ("P9-图片生成", "test_p9_image_gen.py", "test_image_gen_tool"),
 ]
 
 

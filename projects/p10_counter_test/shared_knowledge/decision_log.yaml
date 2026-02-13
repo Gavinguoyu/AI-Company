@@ -3,7 +3,7 @@
 
 决策记录: []
 
-  - id: debcf7b1-ed9b-4644-9713-c976a38c3376
+  - id: e0bbde25-39e4-4122-853c-c84b480ad173
     title: 项目立项确认
     question: PM已分析需求并拆解任务,是否确认项目方向?
 
@@ -12,5 +12,43 @@
     options: ['确认,开始策划', '修改需求', '取消项目']
     decision: 确认,开始策划
     timeout: True
-    timestamp: 2026-02-12T18:47:20.266231
+    timestamp: 2026-02-13T18:32:43.845371
     context: {'phase': 'initiation', 'project_name': 'p10_counter_test'}
+
+  - id: 9ca559e5-3315-4744-945d-e615b0227bc2
+    title: 策划文档审批
+    question: 策划已完成游戏策划文档(GDD),是否批准进入技术设计阶段?
+
+游戏名称: p10_counter_test
+GDD已保存至: shared_knowledge/game_design_doc.md
+    options: ['批准,进入技术设计', '需要修改策划']
+    decision: 批准,进入技术设计
+    timeout: True
+    timestamp: 2026-02-13T18:33:00.553345
+    context: {'phase': 'planning', 'gdd_path': 'D:\\Cursor\\AI-Company\\projects\\p10_counter_test\\shared_knowledge\\game_design_doc.md'}
+
+  - id: 9e47093e-c712-401d-9509-3b159a8a62ba
+    title: 开发阶段验收
+    question: 程序员和美术已完成开发,是否进入测试阶段?
+
+HTML文件: ✅已生成
+JS文件: ✅已生成
+美术素材: 3张图片已生成
+输出目录: D:\Cursor\AI-Company\projects\p10_counter_test\output
+    options: ['进入测试', '先让我看看代码']
+    decision: 进入测试
+    timeout: True
+    timestamp: 2026-02-13T18:33:39.729164
+    context: {'phase': 'development', 'output_dir': 'D:\\Cursor\\AI-Company\\projects\\p10_counter_test\\output'}
+
+  - id: 505f6003-1cb9-4e54-9819-5e47275a69a0
+    title: 项目交付确认
+    question: 测试和Bug修复阶段已完成,是否确认交付项目?
+
+Bug状态: ✅ 所有Bug已修复
+输出目录: D:\Cursor\AI-Company\projects\p10_counter_test\output
+    options: ['确认交付', '继续修复Bug', '放弃项目']
+    decision: 确认交付
+    timeout: True
+    timestamp: 2026-02-13T18:33:50.752353
+    context: {'phase': 'bug_fixing', 'bug_status': '✅ 所有Bug已修复'}

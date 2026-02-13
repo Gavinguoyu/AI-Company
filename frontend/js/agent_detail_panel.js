@@ -218,13 +218,19 @@ export class AgentDetailPanel {
         if (!filePath || !window.app?.currentProjectId) return;
         
         try {
-            const res = await fetch(`/api/project/${window.app.currentProjectId}/file?path=${encodeURIComponent(filePath)}`);
+            const projectId = window.app.currentProjectId;
+            const res = await fetch(`/api/project/${projectId}/file?path=${encodeURIComponent(filePath)}`);
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
             const data = await res.json();
             
             if (data.success) {
                 this.showFileModal(filePath, data.content);
             } else {
-                alert('读取文件失败');
+                alert('读取文件失败: ' + (data.detail || '未知错误'));
             }
         } catch (err) {
             console.error('读取文件失败:', err);
@@ -273,7 +279,26 @@ export class AgentDetailPanel {
     }
 
     renderFiles() {
-        this.elContent.innerHTML = '<div class="drawer-empty">文件列表（开发中）</div>';
+        // BUG-005/006: 添加清晰的功能说明
+        const agentName = AGENT_META[this.currentAgentId]?.name || '未知';
+        this.elContent.innerHTML = `
+            <div class="drawer-empty" style="text-align:left; padding: 20px;">
+                <div style="color: var(--accent); font-size: 14px; margin-bottom: 12px; font-weight: 600;">
+                    📁 ${agentName} 的工作文件
+                </div>
+                <div style="color: var(--text-dim); font-size: 12px; line-height: 1.8;">
+                    <p>此处将展示该 Agent 读取和写入的所有文件列表。</p>
+                    <p style="margin-top: 8px;">当前阶段的文件信息可在以下位置查看：</p>
+                    <ul style="padding-left: 16px; margin-top: 6px;">
+                        <li><strong>产出</strong> 标签页 — 查看Agent已生成的文件</li>
+                        <li><strong>📚 KB</strong> 按钮 — 打开项目知识库查看全部文档</li>
+                    </ul>
+                    <p style="margin-top: 12px; color: var(--orange); font-size: 11px;">
+                        ⚙️ 文件实时追踪功能将在后续版本中完善
+                    </p>
+                </div>
+            </div>
+        `;
     }
 
     /* ───── 工具 ───── */

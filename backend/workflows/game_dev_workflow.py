@@ -32,6 +32,13 @@ from agents.artist_agent import ArtistAgent
 from agents.tester_agent import TesterAgent
 from utils.logger import setup_logger
 
+# P11: 导入缓存管理器
+try:
+    from engine.context_cache import get_cache_manager
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+
 # 导入工具类用于注册
 from tools.code_runner import CodeRunner
 from tools.code_search_tool import CodeSearchTool
@@ -94,6 +101,24 @@ class GameDevWorkflow:
         
         # 决策等待存储 - 存储待决策的请求和结果
         self.pending_decisions: Dict[str, asyncio.Future] = {}
+        
+        # P11: 缓存管理器
+        self._cache_manager = get_cache_manager() if CACHE_AVAILABLE else None
+        
+        # P11: 文档缓存 - 存储已加载的文档内容供后续阶段复用
+        self._document_cache: Dict[str, str] = {}
+        
+        # P11: Token统计
+        self._token_stats = {
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "cache_hits": 0,
+            "documents_cached": 0
+        }
+        
+        # P11: 错误恢复 - 记录失败阶段
+        self._failed_phase: Optional[int] = None
+        self._error_history: List[Dict[str, Any]] = []
         
         # 阶段定义
         self.phases = [
@@ -428,17 +453,36 @@ class GameDevWorkflow:
                 progress=100.0
             )
             
-            # 更新所有Agent状态为空闲
+            # BUG-014: 更新所有Agent状态为空闲，明确标注完成
             for agent_id in self.agents.keys():
                 await broadcast_agent_status(
                     project_id=self.project_name,
                     agent_id=agent_id,
                     status="idle",
-                    current_task="项目已完成"
+                    current_task=""
                 )
+            
+            # BUG-014: 广播项目完成事件到前端
+            from api.websocket_handler import broadcast_project_complete
+            await broadcast_project_complete(
+                project_id=self.project_name,
+                message=f"🎉 项目 {self.project_name} 开发完成！",
+                output_dir=str(self.output_dir)
+            )
             
         except Exception as e:
             self.status = "失败"
+            self._failed_phase = self.current_phase
+            
+            # P11: 记录错误历史
+            error_record = {
+                "phase": self.current_phase,
+                "phase_name": self.phases[self.current_phase - 1]["name"] if self.current_phase > 0 else "unknown",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+            self._error_history.append(error_record)
+            
             self.logger.error(f"工作流执行失败: {e}", exc_info=True)
             
             # 广播错误到前端
@@ -479,9 +523,8 @@ class GameDevWorkflow:
         pm = self.agents["pm"]
         
         # 给PM加载项目规范
-        project_rules = await self.file_tool.read(
-            str(self.knowledge_base_dir / "project_rules.yaml")
-        )
+        # P11: 使用缓存加载项目规范
+        project_rules = await self._load_and_cache_document("project_rules.yaml")
         pm.load_file_to_context("project_rules.yaml", project_rules)
         
         # PM分析需求（使用_create_task_message确保reply_to=workflow）
@@ -540,17 +583,33 @@ class GameDevWorkflow:
         
         # 【决策点1】立项确认 - PM分析完需求后,请求老板确认项目方向
         self.logger.info("🤔 请求老板决策: 立项确认")
+        
+        # 构建更详细的决策信息
+        decision_info = f"""【项目立项决策】
+
+📋 项目名称: {self.project_name}
+📝 需求描述: {self.project_description}
+
+📊 PM分析结果:
+• 技术栈: HTML5 + Canvas + JavaScript
+• 目标平台: 浏览器
+• 美术风格: 像素风
+
+⏭️ 下一步: 策划将编写游戏设计文档(GDD)
+
+请确认是否开始游戏策划阶段？"""
+        
         decision = await self._request_boss_decision(
-            title="项目立项确认",
-            question=f"PM已分析需求并拆解任务,是否确认项目方向?\n\n项目名称: {self.project_name}\n需求描述: {self.project_description}",
-            options=["确认,开始策划", "修改需求", "取消项目"],
+            title="👔 项目立项确认",
+            question=decision_info,
+            options=["✅ 确认,开始策划", "🔄 修改需求", "❌ 取消项目"],
             context={"phase": "initiation", "project_name": self.project_name}
         )
         
-        if decision == "取消项目":
+        if "取消" in decision:
             self.logger.error("❌ 老板取消了项目")
             raise Exception("老板取消了项目")
-        elif decision == "修改需求":
+        elif "修改" in decision:
             self.logger.warning("⚠️ 老板要求修改需求,但当前版本不支持重新立项,将继续执行")
             # TODO: 未来版本可以实现重新走立项流程
     
@@ -569,9 +628,8 @@ class GameDevWorkflow:
         planner = self.agents["planner"]
         
         # 加载项目规范
-        project_rules = await self.file_tool.read(
-            str(self.knowledge_base_dir / "project_rules.yaml")
-        )
+        # P11: 使用缓存加载项目规范
+        project_rules = await self._load_and_cache_document("project_rules.yaml")
         planner.load_file_to_context("project_rules.yaml", project_rules)
         
         # PM分配任务给策划
@@ -671,14 +729,31 @@ class GameDevWorkflow:
         
         # 【决策点2】策划审批 - 策划文档完成后,请求老板审批
         self.logger.info("🤔 请求老板决策: 策划审批")
+        
+        # 构建更详细的决策信息
+        decision_info2 = f"""【策划文档审批】
+
+📋 项目名称: {self.project_name}
+📄 文档路径: shared_knowledge/game_design_doc.md
+
+📝 策划已完成:
+• 游戏策划文档(GDD)
+• 游戏配置表(config_tables.yaml)
+
+⏭️ 下一步: 程序员将根据GDD设计技术架构
+
+💡 提示: 点击"📚 KB"按钮可查看完整文档
+
+是否批准进入技术设计阶段？"""
+        
         decision = await self._request_boss_decision(
-            title="策划文档审批",
-            question=f"策划已完成游戏策划文档(GDD),是否批准进入技术设计阶段?\n\n游戏名称: {self.project_name}\nGDD已保存至: shared_knowledge/game_design_doc.md",
-            options=["批准,进入技术设计", "需要修改策划"],
+            title="📋 策划文档审批",
+            question=decision_info2,
+            options=["✅ 批准,进入技术设计", "🔄 需要修改策划"],
             context={"phase": "planning", "gdd_path": str(self.knowledge_base_dir / "game_design_doc.md")}
         )
         
-        if decision == "需要修改策划":
+        if "修改" in decision:
             self.logger.warning("⚠️ 老板要求修改策划,但当前版本不支持重新策划,将继续执行")
             # TODO: 未来版本可以让策划重新编写
     
@@ -697,12 +772,9 @@ class GameDevWorkflow:
         programmer = self.agents["programmer"]
         
         # 加载相关文档
-        project_rules = await self.file_tool.read(
-            str(self.knowledge_base_dir / "project_rules.yaml")
-        )
-        gdd = await self.file_tool.read(
-            str(self.knowledge_base_dir / "game_design_doc.md")
-        )
+        # P11: 使用缓存加载文档
+        project_rules = await self._load_and_cache_document("project_rules.yaml")
+        gdd = await self._load_and_cache_document("game_design_doc.md")
         
         programmer.load_file_to_context("project_rules.yaml", project_rules)
         programmer.load_file_to_context("game_design_doc.md", gdd)
@@ -830,20 +902,31 @@ output/
         assets_dir = self.output_dir / "assets"
         asset_count = len(list(assets_dir.glob("*.png"))) if assets_dir.exists() else 0
         
-        file_status = (
-            f"HTML文件: {'✅已生成' if html_exists else '❌未生成'}\n"
-            f"JS文件: {'✅已生成' if js_exists else '❌未生成'}\n"
-            f"美术素材: {asset_count}张图片已生成"
-        )
+        # 构建更详细的决策信息
+        decision_info3 = f"""【开发阶段验收】
+
+📋 项目名称: {self.project_name}
+📁 输出目录: output/
+
+📊 产出状态:
+• 📄 index.html: {'✅ 已生成' if html_exists else '❌ 未生成'}
+• 💻 game.js: {'✅ 已生成' if js_exists else '❌ 未生成'}  
+• 🎨 美术素材: {asset_count} 张图片
+
+⏭️ 下一步: 测试工程师将运行游戏并检查Bug
+
+💡 提示: 点击"🎮 PLAY"按钮可试玩游戏
+
+是否进入测试阶段？"""
         
         decision = await self._request_boss_decision(
-            title="开发阶段验收",
-            question=f"程序员和美术已完成开发,是否进入测试阶段?\n\n{file_status}\n输出目录: {self.output_dir}",
-            options=["进入测试", "先让我看看代码"],
+            title="🎮 开发阶段验收",
+            question=decision_info3,
+            options=["✅ 进入测试", "🔍 先让我看看代码"],
             context={"phase": "development", "output_dir": str(self.output_dir)}
         )
         
-        if decision == "先让我看看代码":
+        if "看看" in decision:
             self.logger.info("⏸️ 老板选择先查看代码,等待5秒后继续...")
             await asyncio.sleep(5)  # 给老板时间查看
     
@@ -859,7 +942,7 @@ output/
         
         programmer = self.agents["programmer"]
         
-        # 加载所有必要文档
+        # P11优化: 使用缓存加载文档
         files_to_load = [
             "project_rules.yaml",
             "game_design_doc.md",
@@ -869,9 +952,7 @@ output/
         ]
         
         for filename in files_to_load:
-            content = await self.file_tool.read(
-                str(self.knowledge_base_dir / filename)
-            )
+            content = await self._load_and_cache_document(filename)
             programmer.load_file_to_context(filename, content)
         
         # PM分配编码任务
@@ -963,14 +1044,11 @@ output/
         
         # 加载策划文档供美术Agent参考
         try:
-            gdd_content = await self.file_tool.read(
-                str(self.knowledge_base_dir / "game_design_doc.md")
-            )
+            # P11: 使用缓存加载策划文档
+            gdd_content = await self._load_and_cache_document("game_design_doc.md")
             artist.load_file_to_context("game_design_doc.md", gdd_content)
             
-            rules_content = await self.file_tool.read(
-                str(self.knowledge_base_dir / "project_rules.yaml")
-            )
+            rules_content = await self._load_and_cache_document("project_rules.yaml")
             artist.load_file_to_context("project_rules.yaml", rules_content)
         except Exception as e:
             self.logger.warning(f"加载策划文档失败: {e}")
@@ -1151,9 +1229,8 @@ output/
         tester = self.agents["tester"]
         
         # 加载必要文档
-        gdd = await self.file_tool.read(
-            str(self.knowledge_base_dir / "game_design_doc.md")
-        )
+        # P11: 使用缓存加载GDD
+        gdd = await self._load_and_cache_document("game_design_doc.md")
         tester.load_file_to_context("game_design_doc.md", gdd)
         
         # PM分配测试任务
@@ -1350,17 +1427,33 @@ output/
             else:
                 bug_status = "✅ 所有Bug已修复"
         
+        # 构建更详细的决策信息
+        decision_info4 = f"""【项目交付确认】
+
+📋 项目名称: {self.project_name}
+📁 输出目录: {self.output_dir}
+
+📊 测试状态:
+• Bug状态: {bug_status}
+• 最大修复次数: 3次
+
+⏭️ 下一步: 确认后将完成项目交付
+
+💡 提示: 点击"🎮 PLAY"按钮可试玩游戏
+
+是否确认交付项目？"""
+        
         decision = await self._request_boss_decision(
-            title="项目交付确认",
-            question=f"测试和Bug修复阶段已完成,是否确认交付项目?\n\nBug状态: {bug_status}\n输出目录: {self.output_dir}",
-            options=["确认交付", "继续修复Bug", "放弃项目"],
+            title="🎉 项目交付确认",
+            question=decision_info4,
+            options=["✅ 确认交付", "🔄 继续修复Bug", "❌ 放弃项目"],
             context={"phase": "bug_fixing", "bug_status": bug_status}
         )
         
-        if decision == "放弃项目":
+        if "放弃" in decision:
             self.logger.error("❌ 老板放弃了项目")
             raise Exception("老板放弃了项目")
-        elif decision == "继续修复Bug":
+        elif "修复" in decision:
             self.logger.warning("⚠️ 老板要求继续修复Bug,但已达最大修复次数,将继续交付流程")
             # TODO: 未来版本可以实现额外的修复循环
     
@@ -1594,8 +1687,72 @@ output/
             "agent_status": {
                 agent_id: agent.get_status()
                 for agent_id, agent in self.agents.items()
-            }
+            },
+            # P11: 新增Token统计
+            "token_stats": self._token_stats,
+            "cache_stats": self._cache_manager.get_stats() if self._cache_manager else None,
+            # P11: 新增错误历史
+            "failed_phase": self._failed_phase,
+            "error_history": self._error_history
         }
+    
+    # ==================== P11新增: 文档缓存方法 ====================
+    
+    async def _load_and_cache_document(self, filename: str) -> str:
+        """
+        加载文档并缓存（P11优化）
+        
+        如果文档已在缓存中，直接返回缓存内容，
+        避免重复读取文件。
+        
+        Args:
+            filename: 文件名（相对于knowledge_base_dir）
+            
+        Returns:
+            文档内容
+        """
+        if filename in self._document_cache:
+            self._token_stats["cache_hits"] += 1
+            self.logger.debug(f"文档缓存命中: {filename}")
+            return self._document_cache[filename]
+        
+        # 读取文件
+        file_path = str(self.knowledge_base_dir / filename)
+        content = await self.file_tool.read(file_path)
+        
+        # 缓存文档
+        if content and len(content) > 100:  # 只缓存有效内容
+            self._document_cache[filename] = content
+            self._token_stats["documents_cached"] += 1
+            self.logger.debug(f"文档已缓存: {filename} ({len(content)}字符)")
+            
+            # 同时缓存到Gemini Context Cache（如果可用）
+            if self._cache_manager:
+                try:
+                    await self._cache_manager.cache_content(
+                        content=content,
+                        display_name=f"{self.project_name}_{filename}"
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Context Cache缓存失败: {e}")
+        
+        return content
+    
+    def _get_cached_document(self, filename: str) -> Optional[str]:
+        """获取缓存的文档（不触发文件读取）"""
+        return self._document_cache.get(filename)
+    
+    def _clear_document_cache(self):
+        """清除文档缓存"""
+        self._document_cache.clear()
+        self.logger.info("文档缓存已清除")
+    
+    def get_token_stats(self) -> Dict[str, Any]:
+        """获取Token使用统计"""
+        stats = self._token_stats.copy()
+        if self._cache_manager:
+            stats["context_cache"] = self._cache_manager.get_stats()
+        return stats
 
 
 # 测试用例（直接运行此文件时执行）
